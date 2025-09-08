@@ -114,6 +114,7 @@ def _init_chroma_client():
             return chromadb.Client()  # type: ignore
 
         abs_path = os.path.abspath(cand)
+        os.makedirs(abs_path, exist_ok=True)
         if not _dir_writeable(abs_path):
             continue
 
@@ -226,7 +227,7 @@ _ensure_writable_caches()
 # This is required by ChromaDB.
 # The type hint for embedding_function is complex, and mypy has issues with it.
 # Using type: ignore to suppress the error.
-default_ef = embedding_functions.DefaultEmbeddingFunction()
+default_ef = embedding_functions.SentenceTransformerEmbeddingFunction()
 
 def _init_collections():
     """Initialize ChromaDB collections with error handling."""
