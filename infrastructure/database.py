@@ -74,26 +74,18 @@ def _init_chroma_client():
     # Allow a force-tmp override (e.g. CHROMA_FORCE_TMP=1)
     force_tmp = os.getenv("CHROMA_FORCE_TMP") in {"1", "true", "yes", "on"}
 
-    base_candidates: list[Optional[str]] = [
-        "/data/manifest"
-        "/data/chroma_data"]
+    candidates: list[Optional[str]] = [
+        "/data/manifest"]
     if force_tmp:
-        base_candidates = ["/tmp/chroma_db"]  # override order if forced
+        candidates = ["/data/db_tmp"]  # override order if forced
 
-    candidates: list[Optional[str]] = []
-    seen = set()
-    for c in base_candidates:
-        if c and c not in seen:
-            candidates.append(c)
-            seen.add(c)
 
     tried: list[tuple[Optional[str], str]] = []
 
     def _dir_writeable(path: str) -> bool:
         try:
-            os.makedirs(path, exist_ok=True)
-            _logger.info(f"Ensured directory exists: {path}")
-            _logger.info(f"Set directory permissions to 1411: {path}")
+            _logger.error(f"Ensured directory exists: {path}")
+            _logger.error(f"Set directory permissions to 1411: {path}")
             test_file = os.path.join(path, "write_test.txt")
             with open(test_file, "x", encoding="utf-8") as tf:
                 tf.write("ok")
@@ -111,7 +103,7 @@ def _init_chroma_client():
             return chromadb.Client()  # type: ignore
 
         abs_path = os.path.abspath(cand)
-        _logger.info(f"Attempting Chroma PersistentClient at {abs_path}")
+        _logger.error(f"Attempting Chroma PersistentClient at {abs_path}")
         os.makedirs(abs_path, exist_ok=True)
         _logger.info(f"Ensured directory exists: {abs_path}")
         if not _dir_writeable(abs_path):
