@@ -40,7 +40,8 @@ ENV PYTHONDONTWRITEBYTECODE=1 \
     PERSIST_DIRECTORY=/data/chroma \
     HF_HOME=/data/cache/huggingface \
     TRANSFORMERS_CACHE=/data/cache/hf \
-    XDG_CACHE_HOME=/data/cache
+    XDG_CACHE_HOME=/data/cache \
+    DOWNLOAD_PATH=/data/downloads
 
 WORKDIR /app
 
