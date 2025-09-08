@@ -49,7 +49,7 @@ def _setup_cache_dir():
 
 _setup_cache_dir()
 
-CHROMA_PATH = os.getenv("CHROMA_PATH", "/data/chroma_db")
+CHROMA_PATH = os.getenv("CHROMA_PATH", "/data/chroma_data")
 
 def _init_chroma_client():
     """Initialize a Chroma client with robust write tests & fallbacks.
@@ -75,7 +75,7 @@ def _init_chroma_client():
     force_tmp = os.getenv("CHROMA_FORCE_TMP") in {"1", "true", "yes", "on"}
 
     candidates: list[Optional[str]] = [
-        "/data/manifest"]
+        "/data/chroma_data"]
     if force_tmp:
         candidates = ["/data/db_tmp"]  # override order if forced
 
@@ -85,11 +85,10 @@ def _init_chroma_client():
     def _dir_writeable(path: str) -> bool:
         try:
             _logger.error(f"Ensured directory exists: {path}")
-            _logger.error(f"Set directory permissions to 1411: {path}")
             test_file = os.path.join(path, "write_test.txt")
             with open(test_file, "x", encoding="utf-8") as tf:
                 tf.write("ok")
-            _logger.info(f"Directory {path} is writable.")
+            _logger.error(f"Directory {path} is writable.")
             os.remove(test_file)
             return True
         except Exception as e:  # pragma: no cover - env specific
@@ -114,10 +113,13 @@ def _init_chroma_client():
             for fname in os.listdir(abs_path):
                 if any(fname.endswith(ext) for ext in (".sqlite3", ".db", ".duckdb")):
                     fpath = os.path.join(abs_path, fname)
+                    _logger.info(f"Found existing DB file: {fpath}")
                     if not os.access(fpath, os.W_OK):
                         try:
                             os.chmod(path=fpath, mode=0o777)
+                            _logger.info(f"Set DB file to 777: {fpath}")
                         except Exception:
+                            _logger.error(f"Failed to set DB file permissions: {fpath}")
                             pass
         except Exception:
             pass
