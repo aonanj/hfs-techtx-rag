@@ -1,16 +1,14 @@
-# Use a slim Python image (matches local development Python 3.13 artifacts)
-FROM python:3.13-slim AS builder
+# Use a slim Python image (matches local development Python 3.12 artifacts)
+FROM python:3.12-slim AS builder
 
 # Metadata
-LABEL maintainer="techtrans <no-reply@example.com>"
+LABEL maintainer="techtrans <phaethon@phaethon.llc>"
 
 # Environment - Optimized for Cloud Run and Cloud Logging
 ENV PYTHONDONTWRITEBYTECODE=1 \
     PYTHONUNBUFFERED=1 \
     PIP_DISABLE_PIP_VERSION_CHECK=1 \
-    PORT=8080 \
-    LOG_TO_CLOUD=true \
-    GOOGLE_CLOUD_PROJECT="tech-trans-rag" \
+    PORT=7860 \
     PYTHONPATH=/app
 
 WORKDIR /app
@@ -33,14 +31,16 @@ COPY requirements.txt .
 # Install Python dependencies (include gunicorn for production)
 RUN pip wheel --no-cache-dir --wheel-dir /wheels -r requirements.txt
 
-FROM python:3.13-slim
+FROM python:3.12-slim
 
 ENV PYTHONDONTWRITEBYTECODE=1 \
     PYTHONUNBUFFERED=1 \
     PIP_DISABLE_PIP_VERSION_CHECK=1 \
-    PORT=8080 \
-    LOG_TO_CLOUD=true \
-    GOOGLE_CLOUD_PROJECT="tech-trans-rag"
+    PORT=7860 \
+    PERSIST_DIRECTORY=/data/chroma \
+    HF_HOME=/data/.cache/huggingface \
+    TRANSFORMERS_CACHE=/data/.cache/hf \
+    XDG_CACHE_HOME=/data/.cache
 
 WORKDIR /app
 
@@ -55,7 +55,7 @@ RUN apt-get update \
  && rm -rf /var/lib/apt/lists/*
 
 COPY --from=builder /wheels /wheels
-RUN pip install --no-cache /wheels/*
+RUN pip install --no-cache-dir /wheels/*
 
 COPY . .
 

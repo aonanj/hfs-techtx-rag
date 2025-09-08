@@ -8,8 +8,6 @@ from PIL import Image
 import pytesseract
 import hashlib
 import docx
-from google.cloud import storage
-from google.api_core.exceptions import NotFound
 from typing import Optional, Dict, Any
 import json
 from werkzeug.datastructures import FileStorage
@@ -263,21 +261,17 @@ def upsert_manifest_record(text: str, size: str, doc_id: str, sha256: str, sourc
         "created_at": datetime.now(timezone.utc).isoformat(),
     }
 
-    client = storage.Client(project=PROJECT_ID)
-    bucket = client.bucket(GCS_BUCKET)
-    blob = bucket.blob(MANIFEST_DOC)
-
     line = json.dumps(manifest_record) + "\n"
-
+    manifest_path = MANIFEST_DOC
+    
     try:
-        blob.reload()
-        current_gen = blob.generation
-        existing = blob.download_as_text(encoding="utf-8")
-        updated = existing + line
-        blob.upload_from_string(updated, content_type="application/jsonl", if_generation_match=current_gen)
-        logger.info(f"Appended manifest record to existing manifest with generation {current_gen}")
-    except NotFound:
-        blob.upload_from_string(line, content_type="application/jsonl", if_generation_match=0)
-        logger.info(f"Created new manifest record as manifest did not exist: {manifest_record}")
+        os.makedirs(os.path.dirname(manifest_path), exist_ok=True)
+        
+        with open(manifest_path, "a", encoding="utf-8") as f:
+            f.write(line)
+        
+        logger.info(f"Appended manifest record to {manifest_path}")
+    except IOError as e:
+        logger.error(f"Error writing manifest record to {manifest_path}: {e}")
 
     return manifest_record
