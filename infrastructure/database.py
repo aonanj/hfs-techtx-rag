@@ -99,7 +99,7 @@ def _init_chroma_client():
     def _dir_writeable(path: str) -> bool:
         try:
             os.makedirs(path, exist_ok=True)
-            test_file = os.path.join(path, ".write_test")
+            test_file = os.path.join(path, "write_test.txt")
             with open(test_file, "a", encoding="utf-8") as tf:
                 tf.write("ok")
             _logger.info(f"Directory {path} is writable.")
@@ -115,7 +115,10 @@ def _init_chroma_client():
             return chromadb.Client()  # type: ignore
 
         abs_path = os.path.abspath(cand)
+        _logger.info(f"Attempting Chroma PersistentClient at {abs_path}")
         os.makedirs(abs_path, exist_ok=True)
+        _logger.info(f"Ensured directory exists: {abs_path}")
+        os.chmod(abs_path, 0o1411) 
         if not _dir_writeable(abs_path):
             continue
 
@@ -126,7 +129,7 @@ def _init_chroma_client():
                     fpath = os.path.join(abs_path, fname)
                     if not os.access(fpath, os.W_OK):
                         try:
-                            os.chmod(fpath, 0o660)
+                            os.chmod(path=fpath, mode=0o1411)
                         except Exception:
                             pass
         except Exception:
