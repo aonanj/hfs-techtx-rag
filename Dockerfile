@@ -37,11 +37,6 @@ ENV PYTHONDONTWRITEBYTECODE=1 \
     PYTHONUNBUFFERED=1 \
     PIP_DISABLE_PIP_VERSION_CHECK=1 \
     PORT=7860 \
-    PERSIST_DIRECTORY=/data/chroma \
-    HF_HOME=/data/cache/huggingface \
-    TRANSFORMERS_CACHE=/data/cache/hf \
-    XDG_CACHE_HOME=/data/cache \
-    DOWNLOAD_PATH=/data/downloads
 
 WORKDIR /app
 
