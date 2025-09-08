@@ -32,7 +32,6 @@ def _setup_cache_dir():
     for cache_dir in cache_candidates:
         try:
             os.makedirs(cache_dir, exist_ok=True)
-            os.chmod(cache_dir, 0o1411)
             # Test if writable
             test_file = os.path.join(cache_dir, ".write_test")
             with open(test_file, "w") as f:
@@ -76,8 +75,8 @@ def _init_chroma_client():
     force_tmp = os.getenv("CHROMA_FORCE_TMP") in {"1", "true", "yes", "on"}
 
     base_candidates: list[Optional[str]] = [
-        CHROMA_PATH,
-        "/data/chroma_db"]
+        "/data/manifest"
+        "/data/chroma_data"]
     if force_tmp:
         base_candidates = ["/tmp/chroma_db"]  # override order if forced
 
@@ -94,7 +93,6 @@ def _init_chroma_client():
         try:
             os.makedirs(path, exist_ok=True)
             _logger.info(f"Ensured directory exists: {path}")
-            os.chmod(path, 0o1411)
             _logger.info(f"Set directory permissions to 1411: {path}")
             test_file = os.path.join(path, "write_test.txt")
             with open(test_file, "x", encoding="utf-8") as tf:
@@ -126,7 +124,7 @@ def _init_chroma_client():
                     fpath = os.path.join(abs_path, fname)
                     if not os.access(fpath, os.W_OK):
                         try:
-                            os.chmod(path=fpath, mode=0o1411)
+                            os.chmod(path=fpath, mode=0o777)
                         except Exception:
                             pass
         except Exception:
