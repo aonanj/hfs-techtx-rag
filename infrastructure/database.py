@@ -49,7 +49,7 @@ def _setup_cache_dir():
 
 _setup_cache_dir()
 
-CHROMA_PATH = os.getenv("CHROMA_PATH", "/data/chroma_db")
+CHROMA_PATH = os.getenv("PERSIST_DIRECTORY", "/data/chdata")
 
 def _init_chroma_client():
     """Initialize a Chroma client with robust write tests & fallbacks.
@@ -63,7 +63,7 @@ def _init_chroma_client():
 
     Order of attempts:
       1. Env provided CHROMA_PATH
-      2. /data/chroma_db   (persistent on HF Spaces when writable)
+      2. /data/chdata   (persistent on HF Spaces when writable)
       3. /home/user/chroma_db (common writable home on Spaces)
       4. /tmp/chroma_db    (ephemeral but always writable)
       5. In-memory client  (last resort, non-persistent)
@@ -75,7 +75,7 @@ def _init_chroma_client():
     force_tmp = os.getenv("CHROMA_FORCE_TMP") in {"1", "true", "yes", "on"}
 
     candidates: list[Optional[str]] = [
-        "/data/chroma_db"]
+        "/data/chdata"]
     if force_tmp:
         candidates = ["/data/db_tmp"]  # override order if forced
 
@@ -99,11 +99,11 @@ def _init_chroma_client():
     for cand in candidates:
         if cand is None:
             _logger.error("ChromaDB falling back to in-memory client (no persistence).")
-            return chromadb.PersistentClient(path=os.environ["PERSIST_DIRECTORY"])  # type: ignore
+            return chromadb.PersistentClient()  # type: ignore
 
         abs_path = os.path.abspath(cand)
-        _logger.error(f"Attempting Chroma PersistentClient at {abs_path}")
         os.makedirs(abs_path, exist_ok=True)
+        _logger.error(f"Attempting Chroma PersistentClient at {abs_path}")
         _logger.info(f"Ensured directory exists: {abs_path}")
         if not _dir_writeable(abs_path):
             continue
@@ -113,19 +113,20 @@ def _init_chroma_client():
             for fname in os.listdir(abs_path):
                 if any(fname.endswith(ext) for ext in (".sqlite3", ".db", ".duckdb")):
                     fpath = os.path.join(abs_path, fname)
-                    _logger.info(f"Found existing DB file: {fpath}")
+                    _logger.error(f"Found existing DB file: {fpath}")
                     if not os.access(fpath, os.W_OK):
                         try:
-                            os.chmod(path=fpath, mode=0o777)
-                            _logger.info(f"Set DB file to 777: {fpath}")
+                            os.chmod(path=fpath, mode=0o666)
+                            _logger.error(f"Set DB file to 666: {fpath}")
                         except Exception:
                             _logger.error(f"Failed to set DB file permissions: {fpath}")
                             pass
         except Exception:
             pass
 
-        _logger.info(f"Initializing Chroma PersistentClient at {abs_path}")
+        _logger.error(f"Initializing Chroma PersistentClient at {abs_path}")
         try:
+            _logger.error(f"Attempting Chroma PersistentClient at {abs_path}")
             client = chromadb.PersistentClient(path=os.environ["PERSIST_DIRECTORY"])
         except Exception as e:  # immediate failure
             tried.append((abs_path, f"create failed: {e}"))
@@ -143,14 +144,15 @@ def _init_chroma_client():
         test_coll_name = f"_rw_test_{int(time.time()*1000)}"
         try:
             tc = client.get_or_create_collection(name=test_coll_name)  # type: ignore
-            _logger.info(f"Successfully created test collection {test_coll_name} at {abs_path}")
+            _logger.error(f"Successfully created test collection {test_coll_name} at {abs_path}")
             tc.add(ids=["0"], metadatas=[{"t": "x"}], documents=["test"])
-            _logger.info(f"Successfully added to test collection {test_coll_name} at {abs_path}")
+            _logger.error(f"Successfully added to test collection {test_coll_name} at {abs_path}")
             client.delete_collection(name=test_coll_name)
-            _logger.info(f"Successfully connected with write access at {abs_path}")
+            _logger.error(f"Successfully connected with write access at {abs_path}")
             return client
         except Exception as e:
             msg = str(e).lower()
+            _logger.error(f"DB write test failed at {abs_path}: {e}")
             tried.append((abs_path, f"write test failed: {e}"))
             # Clean up partial collection if it exists
             try:
@@ -179,7 +181,7 @@ def _init_chroma_client():
             continue
 
     _logger.error("Failed to initialize persistent Chroma client; attempts=%s. Using in-memory fallback.", tried)
-    return chromadb.PersistentClient(path=os.environ["PERSIST_DIRECTORY"])  # type: ignore
+    return chromadb.PersistentClient(path=CHROMA_PATH)  # type: ignore
 
 _client = _init_chroma_client()
 

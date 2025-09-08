@@ -1,8 +1,6 @@
 from flask import Flask
 from flask_cors import CORS
 import os
-import pathlib
-import chromadb
 from infrastructure.logger import setup_logger, get_logger
 from routes.web import web_bp
 from routes.api import api_bp
@@ -11,20 +9,23 @@ import infrastructure.database as db
 
 setup_logger()
 
+for k,v in {
+    "PERSIST_DIRECTORY": "/data/chdata",
+    "XDG_CACHE_HOME": "/data/.cache",
+    "HF_HOME": "/data/.huggingface",
+    "HUGGINGFACE_HUB_CACHE": "/data/.cache/huggingface/hub",
+    "TRANSFORMERS_CACHE": "/data/.cache/hf",
+    "SENTENCE_TRANSFORMERS_HOME": "/data/.cache/sentence-transformers",
+    "HOME": "/data",
+}.items():
+    os.environ.setdefault(k, v)
+    os.makedirs(v, exist_ok=True)
+    os.chmod(v, 0o666)  # Ensure read/write permissions
+
 def create_app():
     app = Flask(__name__, template_folder='static')
     CORS(app)
-    for k,v in {
-        "PERSIST_DIRECTORY": "/data/chroma_db",
-        "XDG_CACHE_HOME": "/data/.cache",
-        "HF_HOME": "/data/.huggingface",
-        "HUGGINGFACE_HUB_CACHE": "/data/.cache/huggingface/hub",
-        "TRANSFORMERS_CACHE": "/data/.cache/hf",
-        "SENTENCE_TRANSFORMERS_HOME": "/data/.cache/sentence-transformers",
-        "HOME": "/data",
-    }.items():
-        os.environ.setdefault(k, v)
-        pathlib.Path(v).mkdir(parents=True, exist_ok=True)
+
 
 
     app.register_blueprint(web_bp)
