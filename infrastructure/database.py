@@ -90,7 +90,7 @@ def _ensure_writable_caches():  # pragma: no cover (env specific)
                     continue
 
         # Set cache related env vars if absent
-        cache_base = os.path.join(os.environ.get("HOME", current_home), ".cache")
+        cache_base = os.path.join(os.environ.get("HOME", current_home), "/data/cache")
         for var in ["XDG_CACHE_HOME", "HF_HOME", "TRANSFORMERS_CACHE"]:
             if not os.getenv(var):
                 try:
