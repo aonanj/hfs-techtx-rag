@@ -50,7 +50,7 @@ def _init_chroma_client():
             abs_path = os.path.abspath(cand)
             os.makedirs(abs_path, exist_ok=True)
             test_file = os.path.join(abs_path, ".write_test")
-            with open(test_file, "w", encoding="utf-8") as tf:
+            with open(test_file, "a", encoding="utf-8") as tf:
                 tf.write("ok")
             os.remove(test_file)
             _logger.info(f"Initializing Chroma PersistentClient at {abs_path}")
