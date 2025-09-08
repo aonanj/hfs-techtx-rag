@@ -149,7 +149,7 @@ def _init_chroma_client():
         # WRITE TEST (critical)
         test_coll_name = f"_rw_test_{int(time.time()*1000)}"
         try:
-            tc = client.get_or_create_collection(name=test_coll_name, embedding_function=default_ef)  # type: ignore
+            tc = client.get_or_create_collection(name=test_coll_name)  # type: ignore
             _logger.info(f"Successfully created test collection {test_coll_name} at {abs_path}")
             tc.add(ids=["0"], metadatas=[{"t": "x"}], documents=["test"])
             _logger.info(f"Successfully added to test collection {test_coll_name} at {abs_path}")
@@ -174,7 +174,7 @@ def _init_chroma_client():
                 try:
                     client.reset()
                     # Re-run write test after reset
-                    tc = client.get_or_create_collection(name=test_coll_name, embedding_function=default_ef)  # type: ignore
+                    tc = client.get_or_create_collection(name=test_coll_name)  # type: ignore
                     tc.add(ids=["0"], metadatas=[{"t": "x"}], documents=["test"])
                     client.delete_collection(name=test_coll_name)
                     _logger.info(f"Recovered corrupted DB at {abs_path}")
@@ -230,19 +230,16 @@ _ensure_writable_caches()
 # This is required by ChromaDB.
 # The type hint for embedding_function is complex, and mypy has issues with it.
 # Using type: ignore to suppress the error.
-default_ef = embedding_functions.SentenceTransformerEmbeddingFunction()
 
 def _init_collections():
     """Initialize ChromaDB collections with error handling."""
     global _documents_collection, _chunks_collection
     try:
         _documents_collection = _client.get_or_create_collection(
-            name="documents",
-            embedding_function=default_ef # type: ignore
+            name="documents"
         )
         _chunks_collection = _client.get_or_create_collection(
-            name="chunks",
-            embedding_function=default_ef # type: ignore
+            name="chunks"
         )
         _logger.info("Successfully initialized ChromaDB collections.")
     except Exception as e:
