@@ -7,16 +7,9 @@ from datetime import datetime, timezone
 from dataclasses import dataclass, field, fields
 from typing import List, Optional, Dict, Any
 import numpy as np
+from infrastructure.logger import get_logger
 
-from chromadb.utils import embedding_functions
-
-try:
-    from infrastructure.logger import get_logger  # reuse central logger if available
-    _logger = get_logger()
-except Exception:  # pragma: no cover - fallback minimal logger
-    import logging as _logging
-    _logging.basicConfig(level=_logging.INFO)
-    _logger = _logging.getLogger("db")
+_logger = get_logger()
 
 # ---------------------------------------------------------------------------
 # Versioning for corpus mechanics
@@ -39,6 +32,7 @@ def _setup_cache_dir():
     for cache_dir in cache_candidates:
         try:
             os.makedirs(cache_dir, exist_ok=True)
+            os.chmod(cache_dir, 0o1411)
             # Test if writable
             test_file = os.path.join(cache_dir, ".write_test")
             with open(test_file, "w") as f:
@@ -99,8 +93,11 @@ def _init_chroma_client():
     def _dir_writeable(path: str) -> bool:
         try:
             os.makedirs(path, exist_ok=True)
+            _logger.info(f"Ensured directory exists: {path}")
+            os.chmod(path, 0o1411)
+            _logger.info(f"Set directory permissions to 1411: {path}")
             test_file = os.path.join(path, "write_test.txt")
-            with open(test_file, "a", encoding="utf-8") as tf:
+            with open(test_file, "x", encoding="utf-8") as tf:
                 tf.write("ok")
             _logger.info(f"Directory {path} is writable.")
             os.remove(test_file)
