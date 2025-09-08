@@ -59,64 +59,133 @@ _setup_cache_dir()
 CHROMA_PATH = os.getenv("CHROMA_PATH", "/data/chroma_db")
 
 def _init_chroma_client():
-    """Initialize a Chroma client with fallbacks.
+    """Initialize a Chroma client with robust write tests & fallbacks.
+
+    New behaviour: after creating a PersistentClient we attempt an actual write
+    (temp collection + add + delete). If that raises a *read-only* or similar
+    error we immediately fall back to the next candidate path. This addresses
+    the Hugging Face Spaces scenario where a volume exists but underlying
+    database files were created with different permissions (so directory write
+    test passed but sqlite writes fail with 'attempt to write a readonly database').
 
     Order of attempts:
-      1. Provided/ default CHROMA_PATH (relative or absolute)
-      2. /data/chroma_db (writable in most containerized envs incl. HF Spaces)
-      3. /tmp/chroma_db (fallback for read-only filesystems)
-      4. In-memory (non-persistent) client as last resort
+      1. Env provided CHROMA_PATH
+      2. /data/chroma_db   (persistent on HF Spaces when writable)
+      3. /home/user/chroma_db (common writable home on Spaces)
+      4. /tmp/chroma_db    (ephemeral but always writable)
+      5. In-memory client  (last resort, non-persistent)
     """
-    candidates: list[Optional[str]] = [CHROMA_PATH, "/data/chroma_db", "/tmp/chroma_db"]
+    import time
+    import chromadb  # local import so we can still return memory client last
+
+    # Allow a force-tmp override (e.g. CHROMA_FORCE_TMP=1)
+    force_tmp = os.getenv("CHROMA_FORCE_TMP") in {"1", "true", "yes", "on"}
+
+    base_candidates: list[Optional[str]] = [
+        CHROMA_PATH,
+        "/data/chroma_db",
+        "/home/user/chroma_db",
+        "/tmp/chroma_db",
+    ]
+    if force_tmp:
+        base_candidates = ["/tmp/chroma_db"]  # override order if forced
+
+    candidates: list[Optional[str]] = []
+    seen = set()
+    for c in base_candidates:
+        if c and c not in seen:
+            candidates.append(c)
+            seen.add(c)
+    candidates.append(None)  # final in-memory fallback
+
     tried: list[tuple[Optional[str], str]] = []
 
-    for cand in candidates:
+    def _dir_writeable(path: str) -> bool:
         try:
-            if cand is None:
-                _logger.warning("ChromaDB falling back to in-memory client (no persistence).")
-                import chromadb
-                return chromadb.Client()  # type: ignore
-            # Ensure directory exists and is writable
-            abs_path = os.path.abspath(cand)
-            os.makedirs(abs_path, exist_ok=True)
-            test_file = os.path.join(abs_path, ".write_test")
-            with open(test_file, "a", encoding="utf-8") as tf:
+            os.makedirs(path, exist_ok=True)
+            test_file = os.path.join(path, ".write_test")
+            with open(test_file, "w", encoding="utf-8") as tf:
                 tf.write("ok")
             os.remove(test_file)
-            _logger.info(f"Initializing Chroma PersistentClient at {abs_path}")
-            import chromadb
-            
-            # Try to create the client
+            return True
+        except Exception as e:  # pragma: no cover - env specific
+            tried.append((path, f"dir not writable: {e}"))
+            return False
+
+    for cand in candidates:
+        if cand is None:
+            _logger.warning("ChromaDB falling back to in-memory client (no persistence).")
+            return chromadb.Client()  # type: ignore
+
+        abs_path = os.path.abspath(cand)
+        if not _dir_writeable(abs_path):
+            continue
+
+        # Attempt to (re)chmod existing sqlite/duckdb files if present but not writable
+        try:
+            for fname in os.listdir(abs_path):
+                if any(fname.endswith(ext) for ext in (".sqlite3", ".db", ".duckdb")):
+                    fpath = os.path.join(abs_path, fname)
+                    if not os.access(fpath, os.W_OK):
+                        try:
+                            os.chmod(fpath, 0o660)
+                        except Exception:
+                            pass
+        except Exception:
+            pass
+
+        _logger.info(f"Initializing Chroma PersistentClient at {abs_path}")
+        try:
+            client = chromadb.PersistentClient(path=abs_path)
+        except Exception as e:  # immediate failure
+            tried.append((abs_path, f"create failed: {e}"))
+            continue
+
+        # Basic list works?
+        try:
+            client.list_collections()
+        except Exception as e:
+            tried.append((abs_path, f"list failed: {e}"))
+            continue
+
+        # WRITE TEST (critical)
+        test_coll_name = f"_rw_test_{int(time.time()*1000)}"
+        try:
+            tc = client.get_or_create_collection(name=test_coll_name, embedding_function=default_ef)  # type: ignore
+            tc.add(ids=["0"], metadatas=[{"t": "x"}], documents=["test"])
+            client.delete_collection(name=test_coll_name)
+            _logger.info(f"Successfully connected with write access at {abs_path}")
+            return client
+        except Exception as e:
+            msg = str(e).lower()
+            tried.append((abs_path, f"write test failed: {e}"))
+            # Clean up partial collection if it exists
             try:
-                client = chromadb.PersistentClient(path=abs_path)
-                # Test the client by attempting a simple operation
-                # This helps catch database corruption or "table already exists" errors
-                collections = client.list_collections()
-                _logger.info(f"Successfully connected to ChromaDB at {abs_path}, found {len(collections)} collections")
-                return client
-            except Exception as client_e:
-                _logger.warning(f"Client initialization failed for {abs_path}: {client_e}")
-                # If it's a table exists error or similar corruption, try to reset
-                if any(phrase in str(client_e).lower() for phrase in ["already exists", "table", "corruption"]):
-                    _logger.info(f"Attempting to reset/clean ChromaDB at {abs_path}")
-                    try:
-                        # Try to reset the database
-                        temp_client = chromadb.PersistentClient(path=abs_path)
-                        temp_client.reset()
-                        return chromadb.PersistentClient(path=abs_path)
-                    except Exception as reset_e:
-                        _logger.warning(f"Reset failed for {abs_path}: {reset_e}")
-                        # If reset fails, this path is unusable, continue to next candidate
-                        raise client_e
-                else:
-                    raise client_e
-        except Exception as e:  # pragma: no cover - environment specific
-            tried.append((cand, str(e)))
-            # Continue to next candidate
+                client.delete_collection(name=test_coll_name)
+            except Exception:
+                pass
+            # Detect read-only / permission style errors; if so, try next path
+            if any(tok in msg for tok in ["read-only", "readonly", "permission", "attempt to write"]):
+                _logger.warning(f"Chroma path {abs_path} not writable for DB operations, trying next candidate...")
+                continue
+            # For corruption cases attempt a reset once
+            if any(tok in msg for tok in ["corrupt", "corruption", "malformed", "disk image"]):
+                _logger.warning(f"Possible DB corruption at {abs_path}; attempting reset once")
+                try:
+                    client.reset()
+                    # Re-run write test after reset
+                    tc = client.get_or_create_collection(name=test_coll_name, embedding_function=default_ef)  # type: ignore
+                    tc.add(ids=["0"], metadatas=[{"t": "x"}], documents=["test"])
+                    client.delete_collection(name=test_coll_name)
+                    _logger.info(f"Recovered corrupted DB at {abs_path}")
+                    return client
+                except Exception as e2:
+                    tried.append((abs_path, f"reset failed: {e2}"))
+                    continue
+            # Otherwise just continue to next
             continue
 
     _logger.error("Failed to initialize persistent Chroma client; attempts=%s. Using in-memory fallback.", tried)
-    import chromadb
     return chromadb.Client()  # type: ignore
 
 _client = _init_chroma_client()
@@ -379,7 +448,24 @@ def add_document(*, sha256, title=None, source_path=None, doc_type=None, jurisdi
     }
     metadata = {k: v for k, v in metadata.items() if v is not None}
 
-    _documents_collection.add(ids=[str(new_doc_id)], metadatas=[metadata], documents=[title or ''])
+    try:
+        _documents_collection.add(ids=[str(new_doc_id)], metadatas=[metadata], documents=[title or ''])
+    except Exception as e:
+        msg = str(e).lower()
+        if any(tok in msg for tok in ["read-only", "readonly", "attempt to write", "permission"]):
+            _logger.error("Initial document add failed due to read-only DB; attempting fallback rebuild: %s", e)
+            # Force tmp usage on rebuild
+            os.environ["CHROMA_FORCE_TMP"] = "1"
+            try:
+                rebuild_chroma_client()
+                # Re-attempt add (globals _documents_collection reinitialized)
+                _documents_collection.add(ids=[str(new_doc_id)], metadatas=[metadata], documents=[title or ''])
+                _logger.info("Retry succeeded after rebuilding Chroma client on tmp path.")
+            except Exception as e2:
+                _logger.error("Retry add_document failed after rebuild: %s", e2)
+                raise
+        else:
+            raise
     return Document(doc_id=new_doc_id, **metadata)
 
 def add_chunk(doc_id: int, chunk_id: int, text: str, chunk_index: int, token_count: int | None = None,
