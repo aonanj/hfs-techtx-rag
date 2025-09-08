@@ -108,7 +108,7 @@ def generate_embeddings(
                 )
                 return []
             sleep_for = min(2**attempt, 30)
-            logger.warning(
+            logger.error(
                 "Embedding batch error (%s). Retry %d/%d in %.1fs",
                 e,
                 attempt,

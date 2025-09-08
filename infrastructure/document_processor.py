@@ -93,10 +93,10 @@ def get_manifest_info(text: str) -> Dict[str, Optional[str]]:
             try:
                 data = json.loads(candidate)
             except Exception:
-                logger.warning("AI manifest response not valid JSON; returning defaults")
+                logger.error("AI manifest response not valid JSON; returning defaults")
                 data = {}
         else:
-            logger.warning("AI manifest response unexpected type %s", type(candidate))
+            logger.error("AI manifest response unexpected type %s", type(candidate))
 
         # Build normalized manifest dict
         manifest = {k: (data.get(k) if isinstance(data, dict) else None) for k in expected_keys}
@@ -199,9 +199,9 @@ def extract_title_type_jurisdiction(text: str) -> Dict[str, Optional[str]]:
                 if match:
                     parsed = json.loads(match.group(0))
                 else:
-                    logger.warning("AI title/doc_type/jurisdiction response not valid JSON: %s", candidate[:200])
+                    logger.error("AI title/doc_type/jurisdiction response not valid JSON: %s", candidate[:200])
             except Exception:
-                logger.warning("Failed to parse AI JSON for title/doc_type/jurisdiction")
+                logger.error("Failed to parse AI JSON for title/doc_type/jurisdiction")
 
         if isinstance(parsed, dict):
             for k in keys:

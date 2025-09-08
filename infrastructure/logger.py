@@ -63,11 +63,11 @@ def setup_logger(name="techtrans", level=logging.INFO, toFile=False, fileName="t
                 file_handler.setFormatter(formatter)
                 logger.addHandler(file_handler)
             except PermissionError:
-                logger.warning("File logging disabled: no write permission for %s", final_path)
+                logger.error("File logging disabled: no write permission for %s", final_path)
             except OSError as e:
-                logger.warning("File logging disabled: %s", e)
+                logger.error("File logging disabled: %s", e)
         else:
-            logger.warning("File logging disabled: no writable directory found for %s", target_file)
+            logger.error("File logging disabled: no writable directory found for %s", target_file)
 
     stream_handler = logging.StreamHandler(sys.stderr)
     stream_handler.setFormatter(formatter)

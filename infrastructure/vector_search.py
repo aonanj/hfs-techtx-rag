@@ -37,7 +37,7 @@ def find_nearest_neighbors(
             or not results.get("distances")
             or not results["distances"]
         ):
-            logger.warning("No neighbors found or results format is invalid.")
+            logger.error("No neighbors found or results format is invalid.")
             return []
 
         ids = results["ids"][0]

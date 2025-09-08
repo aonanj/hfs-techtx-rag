@@ -44,7 +44,7 @@ def _setup_cache_dir():
             continue
     
     # If all fail, don't set the cache dir and let ChromaDB handle it
-    _logger.warning("Could not set up ChromaDB cache directory, using default")
+    _logger.error("Could not set up ChromaDB cache directory, using default")
     return None
 
 _setup_cache_dir()
@@ -101,19 +101,19 @@ def _init_chroma_client():
             os.remove(test_file)
             return True
         except Exception as e:  # pragma: no cover - env specific
+            _logger.error(f"Directory {path} not writable: {e}")
             tried.append((path, f"dir not writable: {e}"))
             return False
 
     for cand in candidates:
         if cand is None:
-            _logger.warning("ChromaDB falling back to in-memory client (no persistence).")
+            _logger.error("ChromaDB falling back to in-memory client (no persistence).")
             return chromadb.Client()  # type: ignore
 
         abs_path = os.path.abspath(cand)
         _logger.info(f"Attempting Chroma PersistentClient at {abs_path}")
         os.makedirs(abs_path, exist_ok=True)
         _logger.info(f"Ensured directory exists: {abs_path}")
-        os.chmod(abs_path, 0o1411) 
         if not _dir_writeable(abs_path):
             continue
 
@@ -135,6 +135,7 @@ def _init_chroma_client():
             client = chromadb.PersistentClient(path=abs_path)
         except Exception as e:  # immediate failure
             tried.append((abs_path, f"create failed: {e}"))
+            _logger.error(f"Chroma path {abs_path} not writable for DB operations, trying next candidate...")
             continue
 
         # Basic list works?
@@ -164,11 +165,11 @@ def _init_chroma_client():
                 pass
             # Detect read-only / permission style errors; if so, try next path
             if any(tok in msg for tok in ["read-only", "readonly", "permission", "attempt to write"]):
-                _logger.warning(f"Chroma path {abs_path} not writable for DB operations, trying next candidate...")
+                _logger.error(f"Chroma path {abs_path} not writable for DB operations, trying next candidate...")
                 continue
             # For corruption cases attempt a reset once
             if any(tok in msg for tok in ["corrupt", "corruption", "malformed", "disk image"]):
-                _logger.warning(f"Possible DB corruption at {abs_path}; attempting reset once")
+                _logger.error(f"Possible DB corruption at {abs_path}; attempting reset once")
                 try:
                     client.reset()
                     # Re-run write test after reset
@@ -204,7 +205,7 @@ def _ensure_writable_caches():  # pragma: no cover (env specific)
                         f.write("ok")
                     os.remove(test_path)
                     os.environ["HOME"] = cand
-                    _logger.warning(f"Reset HOME to writable directory: {cand}")
+                    _logger.error(f"Reset HOME to writable directory: {cand}")
                     current_home = cand
                     break
                 except Exception:  # continue trying fallbacks
@@ -220,7 +221,7 @@ def _ensure_writable_caches():  # pragma: no cover (env specific)
                 except Exception:
                     pass
     except Exception as e:
-        _logger.warning(f"Cache/HOME setup skipped due to error: {e}")
+        _logger.error(f"Cache/HOME setup skipped due to error: {e}")
 
 _ensure_writable_caches()
 

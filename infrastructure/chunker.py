@@ -238,10 +238,10 @@ def get_chunk_info(text: str, chunk_text: str) -> Dict[str, Optional[str]]:
             try:
                 data = json.loads(candidate)
             except Exception:
-                logger.warning("AI manifest response not valid JSON; returning defaults")
+                logger.error("AI manifest response not valid JSON; returning defaults")
                 data = {}
         else:
-            logger.warning("AI manifest response unexpected type %s", type(candidate))
+            logger.error("AI manifest response unexpected type %s", type(candidate))
 
         # Build normalized manifest dict
         manifest = {k: (data.get(k) if isinstance(data, dict) else None) for k in expected_keys}
@@ -273,7 +273,7 @@ def chunk_doc(text: str, doc_id: str, max_chars: int = 1200, overlap: int = 150,
 		if token_overlap < 0:
 			raise ValueError("token_overlap cannot be negative")
 		if token_overlap >= max_tokens:
-			logger.warning("token_overlap (%d) >= max_tokens (%d); reducing", token_overlap, max_tokens)
+			logger.error("token_overlap (%d) >= max_tokens (%d); reducing", token_overlap, max_tokens)
 			token_overlap = max(0, max_tokens // 5)
 	else:
 		if max_chars <= 0:
@@ -281,7 +281,7 @@ def chunk_doc(text: str, doc_id: str, max_chars: int = 1200, overlap: int = 150,
 		if overlap < 0:
 			raise ValueError("overlap cannot be negative")
 		if overlap >= max_chars:
-			logger.warning("overlap (%d) >= max_chars (%d); reducing overlap", overlap, max_chars)
+			logger.error("overlap (%d) >= max_chars (%d); reducing overlap", overlap, max_chars)
 			overlap = max(0, max_chars // 4)  # soften
 
 
@@ -295,7 +295,7 @@ def chunk_doc(text: str, doc_id: str, max_chars: int = 1200, overlap: int = 150,
 			para_with_pages.append((p_idx, para))
 
 	if not para_with_pages:
-		logger.warning("No paragraphs detected; using raw text as single chunk for %s", doc_id)
+		logger.error("No paragraphs detected; using raw text as single chunk for %s", doc_id)
 		para_with_pages = [(1, text)]
 
 	if use_tokens:

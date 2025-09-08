@@ -14,10 +14,11 @@ def create_app():
     app = Flask(__name__, template_folder='static')
     CORS(app)
     app.config.from_object('config.Config')
+    logger = get_logger()
     for k,v in {
-        "PERSIST_DIRECTORY": "/data/chroma_db",
+        "PERSIST_DIRECTORY": "/data/chroma_data",
         "XDG_CACHE_HOME": "/data/.cache",
-        "HF_HOME": "/data/.cache/huggingface",
+        "HF_HOME": "/data/.huggingface",
         "HUGGINGFACE_HUB_CACHE": "/data/.cache/huggingface/hub",
         "TRANSFORMERS_CACHE": "/data/.cache/hf",
         "SENTENCE_TRANSFORMERS_HOME": "/data/.cache/sentence-transformers",
@@ -36,7 +37,7 @@ def create_app():
                     os.environ[k] = fallback
                     logger = get_logger() if 'get_logger' in globals() else None
                     if logger:
-                        logger.warning(f"Fallback: {k} set to {fallback} due to: {e}")
+                        logger.error(f"Fallback: {k} set to {fallback} due to: {e}")
                     else:
                         print(f"Warning: {k} set to {fallback} due to: {e}")
                 except Exception:
@@ -61,7 +62,7 @@ def create_app():
                     logger.error("Database reset failed - app may not function properly")
             except Exception as reset_e:
                 logger.error(f"Database reset failed: {reset_e}")
-                logger.warning("App will continue but database functionality may be limited")
+                logger.error("App will continue but database functionality may be limited")
 
     return app
 
