@@ -102,6 +102,7 @@ def _init_chroma_client():
             test_file = os.path.join(path, ".write_test")
             with open(test_file, "a", encoding="utf-8") as tf:
                 tf.write("ok")
+            _logger.info(f"Directory {path} is writable.")
             os.remove(test_file)
             return True
         except Exception as e:  # pragma: no cover - env specific
@@ -149,7 +150,9 @@ def _init_chroma_client():
         test_coll_name = f"_rw_test_{int(time.time()*1000)}"
         try:
             tc = client.get_or_create_collection(name=test_coll_name, embedding_function=default_ef)  # type: ignore
+            _logger.info(f"Successfully created test collection {test_coll_name} at {abs_path}")
             tc.add(ids=["0"], metadatas=[{"t": "x"}], documents=["test"])
+            _logger.info(f"Successfully added to test collection {test_coll_name} at {abs_path}")
             client.delete_collection(name=test_coll_name)
             _logger.info(f"Successfully connected with write access at {abs_path}")
             return client
