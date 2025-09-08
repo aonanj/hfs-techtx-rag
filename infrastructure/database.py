@@ -27,6 +27,12 @@ SEG_VER = int(os.getenv("SEG_VER", "1"))
 # ---------------------------------------------------------------------------
 # ChromaDB client setup (with HuggingFace / read-only filesystem resilience)
 # ---------------------------------------------------------------------------
+# Set a writable cache directory for ChromaDB
+CACHE_DIR = "/data/chroma_cache"
+os.environ["CHROMA_CACHE_DIR"] = CACHE_DIR
+if not os.path.exists(CACHE_DIR):
+    os.makedirs(CACHE_DIR)
+
 CHROMA_PATH = os.getenv("CHROMA_PATH", "/data/chroma_db")
 
 def _init_chroma_client():
@@ -79,7 +85,7 @@ def _ensure_writable_caches():  # pragma: no cover (env specific)
                 try:
                     os.makedirs(cand, exist_ok=True)
                     test_path = os.path.join(cand, ".home_write_test")
-                    with open(test_path, "w", encoding="utf-8") as f:
+                    with open(test_path, "a", encoding="utf-8") as f:
                         f.write("ok")
                     os.remove(test_path)
                     os.environ["HOME"] = cand
