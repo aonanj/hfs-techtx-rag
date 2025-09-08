@@ -37,7 +37,7 @@ def _init_chroma_client():
       2. /tmp/chroma_db (writable in most containerized envs incl. HF Spaces)
       3. In-memory (non-persistent) client as last resort
     """
-    candidates: list[Optional[str]] = [CHROMA_PATH, "/tmp/chroma_db", None]
+    candidates: list[Optional[str]] = [CHROMA_PATH, "/tmp/chroma_db"]
     tried: list[tuple[Optional[str], str]] = []
 
     for cand in candidates:
