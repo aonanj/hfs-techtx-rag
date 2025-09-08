@@ -1,0 +1,518 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Technology Transactions Assistant - Document Upload</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'SF Pro Rounded', 'SF Pro Display', Roboto, Oxygen, Ubuntu, Cantarell, sans-serif;
+            background: #001122;
+            min-height: 100vh;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            padding: 20px;
+            color: #fff;
+        }
+
+        .header-section {
+            width: 100%;
+            max-width: 800px;
+            background: #333;
+            border-radius: 20px;
+            padding: 20px;
+            margin-bottom: 20px;
+            box-shadow: 0 18px 50px rgba(0, 0, 0, 0.5);
+            text-align: center;
+        }
+
+        .header-title {
+            color: #fff;
+            font-size: 2.5rem;
+            font-weight: 500;
+            text-shadow: 0 4px 8px rgba(0, 0, 0, 0.5);
+            margin: 0;
+        }
+
+        .upload-container {
+            width: 100%;
+            max-width: 800px;
+            background: #333;
+            border-radius: 20px;
+            padding: 40px;
+            box-shadow: 0 18px 50px rgba(0, 0, 0, 0.5);
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            gap: 25px;
+        }
+
+        .upload-title {
+            color: #ccc;
+            font-size: 1.8rem;
+            font-weight: 500;
+            text-align: center;
+            text-shadow: 0 4px 8px rgba(0, 0, 0, 0.5);
+            margin-bottom: 10px;
+        }
+
+        .upload-description {
+            color: #ccc;
+            font-size: 1rem;
+            text-align: center;
+            margin-bottom: 20px;
+            line-height: 1.5;
+        }
+
+        .upload-area {
+            width: 100%;
+            border: 3px dashed #555;
+            border-radius: 15px;
+            padding: 40px 20px;
+            text-align: center;
+            background: #222;
+            transition: all 0.3s ease;
+            cursor: pointer;
+            position: relative;
+        }
+
+        .upload-area:hover {
+            border-color: #7ec8ff;
+            background: #2a2a2a;
+        }
+
+        .upload-area.dragover {
+            border-color: #7ec8ff;
+            background: #2a2a2a;
+            transform: scale(1.02);
+        }
+
+        .upload-icon {
+            font-size: 3rem;
+            color: #555;
+            margin-bottom: 15px;
+        }
+
+        .upload-text {
+            color: #ccc;
+            font-size: 1rem;
+            margin-bottom: 10px;
+        }
+
+        .upload-subtext {
+            color: #888;
+            font-size: 0.9rem;
+        }
+
+        .file-input {
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            opacity: 0;
+            cursor: pointer;
+        }
+
+        .selected-file {
+            display: none;
+            background: #222;
+            border: 2px solid #555;
+            border-radius: 10px;
+            padding: 15px;
+            width: 100%;
+            margin-top: 20px;
+        }
+
+        .selected-file.visible {
+            display: block;
+        }
+
+        .file-info {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            color: #fff;
+        }
+
+        .file-name {
+            font-weight: 600;
+        }
+
+        .file-size {
+            color: #ccc;
+            font-size: 0.9rem;
+        }
+
+        .remove-file {
+            margin-left: auto;
+            background: rgba(255,102,102,0.45);
+            color: #fff;
+            border: none;
+            padding: 5px 10px;
+            border-radius: 5px;
+            cursor: pointer;
+            font-size: 0.8rem;
+        }
+
+        .remove-file:hover {
+            background: rgba(255,102,102,0.60);
+        }
+
+        .upload-button {
+            background: #7ec8ff;
+            color: #001122;
+            border: none;
+            padding: 14px 30px;
+            border-radius: 10px;
+            font-size: 1rem;
+            font-weight: 600;
+            cursor: pointer;
+            transition: all 0.3s ease;
+            letter-spacing: 1px;
+            margin-top: 10px;
+            display: none;
+        }
+
+        .upload-button.visible {
+            display: block;
+        }
+
+        .upload-button:hover {
+            background: #6bb8ff;
+            transform: translateY(-2px);
+            box-shadow: 0 8px 18px rgba(126, 200, 255, 0.3);
+        }
+
+        .upload-button:active {
+            transform: translateY(0);
+        }
+
+        .upload-button:disabled {
+            background: #555;
+            color: #999;
+            cursor: not-allowed;
+            transform: none;
+            box-shadow: none;
+        }
+
+        .progress-container {
+            width: 100%;
+            background: #222;
+            border-radius: 10px;
+            overflow: hidden;
+            margin-top: 20px;
+            display: none;
+        }
+
+        .progress-container.visible {
+            display: block;
+        }
+
+        .progress-bar {
+            height: 6px;
+            background: #7ec8ff;
+            width: 0%;
+            transition: width 0.3s ease;
+        }
+
+        .progress-text {
+            padding: 10px;
+            text-align: center;
+            color: #ccc;
+            font-size: 0.9rem;
+        }
+
+        .upload-result {
+            display: none;
+            padding: 20px;
+            border-radius: 10px;
+            margin-top: 20px;
+            text-align: center;
+            word-break: break-word;
+        }
+
+        .upload-result.success {
+            background: rgba(72, 187, 120, 0.2);
+            border: 2px solid rgba(72, 187, 120, 0.5);
+            color: #48bb78;
+        }
+
+        .upload-result.error {
+            background: rgba(245, 101, 101, 0.2);
+            border: 2px solid rgba(245, 101, 101, 0.5);
+            color: #f56565;
+        }
+
+        @media (max-width: 768px) {
+            .upload-container {
+                padding: 30px 20px;
+            }
+            
+            .header-title {
+                font-size: 2rem;
+            }
+            
+            .upload-title {
+                font-size: 1.5rem;
+            }
+        }
+    </style>
+</head>
+<body>
+    <div class="header-section">
+        <h1 class="header-title">Technology Transactions Assistant</h1>
+    </div>
+    
+    <div class="upload-container">
+        <h2 class="upload-title">Document Upload</h2>
+        <p class="upload-description">
+            Upload a technology transactions document (pdf, txt, or docx; max 10MB)
+        </p>
+        
+        <form id="uploadForm" enctype="multipart/form-data">
+            <div class="upload-area" id="uploadArea">
+                <div class="upload-icon">📄</div>
+                <div class="upload-text">Drag and drop file here</div>
+                <div class="upload-subtext">or click to browse</div>
+                <!-- Added name="file" so the backend sees the expected field name -->
+                <input type="file" id="fileInput" name="file" class="file-input" accept=".pdf,.docx,.txt" />
+            </div>
+
+            <div style="display:flex; gap:16px; width:100%; margin-top:18px;">
+                <div style="flex:1; display:flex; flex-direction:column; gap:6px;">
+                    <label for="docType" style="font-size:0.8rem; color:#ccc;">Document Type (optional)</label>
+                    <input id="docType" name="doc_type" type="text" maxlength="128" placeholder="e.g., License Agreement" style="background:#222; border:2px solid #555; border-radius:8px; padding:10px; color:#fff; font-family:inherit; font-size:0.85rem;" />
+                </div>
+                <div style="flex:1; display:flex; flex-direction:column; gap:6px;">
+                    <label for="jurisdiction" style="font-size:0.8rem; color:#ccc;">Jurisdiction (optional)</label>
+                    <input id="jurisdiction" name="jurisdiction" type="text" maxlength="64" placeholder="e.g., US-CA" style="background:#222; border:2px solid #555; border-radius:8px; padding:10px; color:#fff; font-family:inherit; font-size:0.85rem;" />
+                </div>
+            </div>
+            
+            <div class="selected-file" id="selectedFile">
+                <div class="file-info">
+                    <span class="file-name" id="fileName"></span>
+                    <span class="file-size" id="fileSize"></span>
+                    <button type="button" class="remove-file" id="removeFile">Remove</button>
+                </div>
+            </div>
+            
+            <button type="submit" class="upload-button" id="uploadButton">Upload Document</button>
+        </form>
+        
+        <div class="progress-container" id="progressContainer">
+            <div class="progress-bar" id="progressBar"></div>
+            <div class="progress-text" id="progressText">Uploading...</div>
+            <div style="font-size: 0.7rem; font-style: italic; text-align: center; color: #ccc; padding: 0 10px 10px;">
+                Note: Generating and indexing embeddings will take several minutes. Thank you for your patience.
+            </div>
+        </div>
+        
+        <div class="upload-result" id="uploadResult"></div>
+    </div>
+
+    <script>
+        const uploadArea = document.getElementById('uploadArea');
+        const fileInput = document.getElementById('fileInput');
+        const selectedFile = document.getElementById('selectedFile');
+        const fileName = document.getElementById('fileName');
+        const fileSize = document.getElementById('fileSize');
+        const removeFile = document.getElementById('removeFile');
+        const uploadButton = document.getElementById('uploadButton');
+        const uploadForm = document.getElementById('uploadForm');
+        const progressContainer = document.getElementById('progressContainer');
+        const progressBar = document.getElementById('progressBar');
+        const progressText = document.getElementById('progressText');
+        const uploadResult = document.getElementById('uploadResult');
+
+        let selectedFileObj = null;
+
+        // File input change handler
+        fileInput.addEventListener('change', handleFileSelect);
+
+        // Drag and drop handlers
+        uploadArea.addEventListener('dragover', (e) => {
+            e.preventDefault();
+            uploadArea.classList.add('dragover');
+        });
+
+        uploadArea.addEventListener('dragleave', () => {
+            uploadArea.classList.remove('dragover');
+        });
+
+        uploadArea.addEventListener('drop', (e) => {
+            e.preventDefault();
+            uploadArea.classList.remove('dragover');
+            
+            const files = e.dataTransfer.files;
+            if (files.length > 0) {
+                handleFile(files[0]);
+            }
+        });
+
+        // Remove file handler
+        removeFile.addEventListener('click', () => {
+            clearFileSelection();
+            uploadResult.style.display = 'none';
+        });
+
+        // Form submission handler — use XMLHttpRequest to support upload progress
+        uploadForm.addEventListener('submit', (e) => {
+            e.preventDefault();
+            
+            if (!selectedFileObj) {
+                showResult('Please select a file to upload.', 'error');
+                return;
+            }
+
+            uploadButton.disabled = true;
+            progressContainer.classList.add('visible');
+            uploadResult.style.display = 'none';
+            progressBar.style.width = '0%';
+            progressText.textContent = 'Starting upload...';
+
+            const formData = new FormData();
+            formData.append('file', selectedFileObj);
+            const dt = document.getElementById('docType').value.trim();
+            const jur = document.getElementById('jurisdiction').value.trim();
+            if (dt) formData.append('doc_type', dt);
+            if (jur) formData.append('jurisdiction', jur);
+
+            const xhr = new XMLHttpRequest();
+            xhr.open('POST', '/api/upload', true);
+
+            // Upload progress
+            xhr.upload.onprogress = function(event) {
+                if (event.lengthComputable) {
+                    const percent = Math.round((event.loaded / event.total) * 100);
+                    progressBar.style.width = percent + '%';
+                    progressText.textContent = `Uploading... ${percent}%`;
+                }
+            };
+
+            xhr.onload = function() {
+                uploadButton.disabled = false;
+                // Attempt to parse JSON response from server
+                let responseJson = null;
+                try {
+                    responseJson = JSON.parse(xhr.responseText || '{}');
+                } catch (err) {
+                    showResult('Upload failed: invalid server response.', 'error');
+                    progressContainer.classList.remove('visible');
+                    return;
+                }
+
+                if (xhr.status >= 200 && xhr.status < 300) {
+                    progressBar.style.width = '100%';
+                    progressText.textContent = 'Upload complete';
+                    // Show returned metadata if present
+                    const docId = responseJson.doc_id ? `Doc ID: ${responseJson.doc_id}` : '';
+                    const sha = responseJson.sha256 ? `SHA256: ${responseJson.sha256}` : '';
+                    const title = responseJson.title ? `Title: ${responseJson.title}` : '';
+                    const dtEcho = responseJson.doc_type ? `Type: ${responseJson.doc_type}` : '';
+                    const jurEcho = responseJson.jurisdiction ? `Jurisdiction: ${responseJson.jurisdiction}` : '';
+                    const msgParts = ['Document uploaded successfully.', docId, title, dtEcho, jurEcho].filter(Boolean);
+                    showResult(msgParts.join(' — '), 'success');
+                    // Keep note about indexing in case embeddings are generated async
+                    const indexingNote = document.createElement('div');
+                    indexingNote.style.marginTop = '8px';
+                    indexingNote.style.fontSize = '0.85rem';
+                    indexingNote.style.color = '#ccc';
+                    indexingNote.textContent = 'Embeddings/indexing may continue in the background.';
+                    uploadResult.appendChild(indexingNote);
+                    clearFileSelection();
+                } else {
+                    // Try to show server error message
+                    const errMsg = responseJson && responseJson.error ? responseJson.error : xhr.statusText || 'Upload failed';
+                    showResult(`Upload failed: ${errMsg}`, 'error');
+                }
+                progressContainer.classList.remove('visible');
+            };
+
+            xhr.onerror = function() {
+                uploadButton.disabled = false;
+                showResult('Upload failed: network error.', 'error');
+                progressContainer.classList.remove('visible');
+            };
+
+            xhr.ontimeout = function() {
+                uploadButton.disabled = false;
+                showResult('Upload timed out.', 'error');
+                progressContainer.classList.remove('visible');
+            };
+
+            // Optional timeout (ms) — adjust or remove as needed
+            xhr.timeout = 500000; // 8 minutes
+
+            xhr.send(formData);
+        });
+
+        function handleFileSelect(e) {
+            const file = e.target.files[0];
+            if (file) {
+                handleFile(file);
+            }
+        }
+
+        function clearFileSelection() {
+            selectedFileObj = null;
+            fileInput.value = '';
+            selectedFile.classList.remove('visible');
+            uploadButton.classList.remove('visible');
+        }
+
+        function handleFile(file) {
+            // Validate file type by MIME or extension fallback
+            const allowedTypes = [
+                'application/pdf',
+                'application/vnd.openxmlformats-officedocument.wordprocessingml.document',
+                'application/msword',
+                'text/plain'
+            ];
+
+            const ext = (file.name || '').split('.').pop().toLowerCase();
+            const allowedExt = ['pdf', 'docx', 'doc', 'txt'];
+
+            if (!allowedTypes.includes(file.type) && !allowedExt.includes(ext)) {
+                showResult('Please select a .pdf, .txt, .doc, or .docx file.', 'error');
+                return;
+            }
+
+            const maxSize = 10 * 1024 * 1024; 
+            if (file.size > maxSize) {
+                showResult('File size must be less than 10MB.', 'error');
+                return;
+            }
+
+            selectedFileObj = file;
+            fileName.textContent = file.name;
+            fileSize.textContent = formatFileSize(file.size);
+            selectedFile.classList.add('visible');
+            uploadButton.classList.add('visible');
+            uploadResult.style.display = 'none';
+        }
+
+        function formatFileSize(bytes) {
+            if (bytes === 0) return '0 Bytes';
+            const k = 1024;
+            const sizes = ['Bytes', 'KB', 'MB', 'GB'];
+            const i = Math.floor(Math.log(bytes) / Math.log(k));
+            return parseFloat((bytes / Math.pow(k, i)).toFixed(2)) + ' ' + sizes[i];
+        }
+
+        function showResult(message, type) {
+            uploadResult.textContent = message;
+            uploadResult.className = `upload-result ${type}`;
+            uploadResult.style.display = 'block';
+        }
+    </script>
+</body>
