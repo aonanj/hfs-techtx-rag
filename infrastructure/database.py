@@ -61,7 +61,7 @@ def _init_chroma_client():
             os.remove(test_file)
             _logger.info(f"Initializing Chroma PersistentClient at {abs_path}")
             import chromadb
-            return chromadb.PersistentClient(path=abs_path)  # type: ignore
+            return chromadb.PersistentClient(path=os.environ["PERSIST_DIRECTORY"])
         except Exception as e:  # pragma: no cover - environment specific
             tried.append((cand, str(e)))
             # Continue to next candidate
