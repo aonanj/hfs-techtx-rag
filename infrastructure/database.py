@@ -141,7 +141,7 @@ def _init_chroma_client():
             continue
 
         # WRITE TEST (critical)
-        test_coll_name = f"_rw_test_{int(time.time()*1000)}"
+        test_coll_name = f"rw_test_{int(time.time()*10)}"
         try:
             tc = client.get_or_create_collection(name=test_coll_name)  # type: ignore
             _logger.error(f"Successfully created test collection {test_coll_name} at {abs_path}")

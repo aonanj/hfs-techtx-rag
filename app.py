@@ -9,28 +9,25 @@ import infrastructure.database as db
 
 setup_logger()
 
-for k,v in {
-    "PERSIST_DIRECTORY": "/data/chdata",
-    "XDG_CACHE_HOME": "/data/.cache",
-    "HF_HOME": "/data/.huggingface",
-    "HUGGINGFACE_HUB_CACHE": "/data/.cache/huggingface/hub",
-    "TRANSFORMERS_CACHE": "/data/.cache/hf",
-    "SENTENCE_TRANSFORMERS_HOME": "/data/.cache/sentence-transformers",
-    "HOME": "/data",
-}.items():
-    os.environ.setdefault(k, v)
-    os.makedirs(v, exist_ok=True)
-    os.chmod(v, 0o666)  # Ensure read/write permissions
-
 def create_app():
     app = Flask(__name__, template_folder='static')
     CORS(app)
 
-
+    for k,v in {
+        "PERSIST_DIRECTORY": "/data/chdata",
+        "XDG_CACHE_HOME": "/data/.cache",
+        "HF_HOME": "/data/.huggingface",
+        "TRANSFORMERS_CACHE": "/data/.cache/hf",
+        "SENTENCE_TRANSFORMERS_HOME": "/data/.cache/sentence-transformers",
+        "HOME": "/data",
+    }.items():
+        os.environ.setdefault(k, v)
+        abs_path = os.path.abspath(v)
+        os.makedirs(abs_path, exist_ok=True)
+        os.chmod(abs_path, 0o666)  # Ensure read/write permissions
 
     app.register_blueprint(web_bp)
     app.register_blueprint(api_bp)
-
 
     with app.app_context():
         logger = get_logger()
