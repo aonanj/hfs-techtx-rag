@@ -45,12 +45,9 @@ except Exception:  # pragma: no cover - fallback path
 logger = get_logger()
 
 API_KEY = os.getenv("OPENAI_API_KEY", "")
+CHUNKS_DIR = os.getenv("CHUNKS_DIR", "/data/chunks")
 
-API_KEY = os.getenv("OPENAI_API_KEY")
-PROJECT_ID = os.getenv("VERTEX_PROJECT_ID", "tech-trans-rag")
-GCS_BUCKET = os.getenv("GCS_BUCKET", "tech-trans-rag-bucket")
-MANIFEST_DOC = os.getenv("MANIFEST_DOC", "manifest/manifest.jsonl")
-CHUNKS_DOC = os.getenv("CHUNKS_DOC", "chunks/chunks.jsonl")
+
 
 
 def _split_pages(text: str) -> List[str]:
@@ -367,18 +364,19 @@ def chunk_doc(text: str, doc_id: str, max_chars: int = 1200, overlap: int = 150,
 			rec['next_id'] = chunk_metadata_records[i+1]['index']
 
 	# Write / upsert JSONL file
-	os.makedirs(os.path.dirname(CHUNKS_DOC), exist_ok=True)
+	os.makedirs(os.path.dirname(CHUNKS_DIR), exist_ok=True)
 	records = json.dumps(chunk_metadata_records, ensure_ascii=False, indent=0)
+	path = os.path.join(CHUNKS_DIR, "chunks.jsonl")
 
 	try:
-		with open(CHUNKS_DOC, "r+", encoding="utf-8") as f:
+		with open(path, "r+", encoding="utf-8") as f:
 			existing = f.read()
 			f.seek(0)
 			updated = existing + "\n" + records if existing else records
 			f.write(updated)
-		logger.info(f"Appended {len(chunk_metadata_records)} chunk records to existing chunks file {CHUNKS_DOC}")
+		logger.info(f"Appended {len(chunk_metadata_records)} chunk records to existing chunks file {path}")
 	except FileNotFoundError:
-		with open(CHUNKS_DOC, "w", encoding="utf-8") as f:
+		with open(path, "w", encoding="utf-8") as f:
 			f.write(records)
 		logger.info(f"Created new chunks file with {len(chunk_metadata_records)} records as it did not exist")
 

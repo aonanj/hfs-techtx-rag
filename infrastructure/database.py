@@ -8,7 +8,6 @@ from dataclasses import dataclass, field, fields
 from typing import List, Optional, Dict, Any
 import numpy as np
 
-import chromadb
 from chromadb.utils import embedding_functions
 
 try:
@@ -26,10 +25,47 @@ TOK_VER = int(os.getenv("TOK_VER", "1"))
 SEG_VER = int(os.getenv("SEG_VER", "1"))
 
 # ---------------------------------------------------------------------------
-# ChromaDB client setup
+# ChromaDB client setup (with HuggingFace / read-only filesystem resilience)
 # ---------------------------------------------------------------------------
 CHROMA_PATH = os.getenv("CHROMA_PATH", "chroma_db")
-_client = chromadb.PersistentClient(path=CHROMA_PATH)
+
+def _init_chroma_client():
+    """Initialize a Chroma client with fallbacks.
+
+    Order of attempts:
+      1. Provided/ default CHROMA_PATH (relative or absolute)
+      2. /tmp/chroma_db (writable in most containerized envs incl. HF Spaces)
+      3. In-memory (non-persistent) client as last resort
+    """
+    candidates: list[Optional[str]] = [CHROMA_PATH, "/tmp/chroma_db", None]
+    tried: list[tuple[Optional[str], str]] = []
+
+    for cand in candidates:
+        try:
+            if cand is None:
+                _logger.warning("ChromaDB falling back to in-memory client (no persistence).")
+                import chromadb
+                return chromadb.Client()  # type: ignore
+            # Ensure directory exists and is writable
+            abs_path = os.path.abspath(cand)
+            os.makedirs(abs_path, exist_ok=True)
+            test_file = os.path.join(abs_path, ".write_test")
+            with open(test_file, "w", encoding="utf-8") as tf:
+                tf.write("ok")
+            os.remove(test_file)
+            _logger.info(f"Initializing Chroma PersistentClient at {abs_path}")
+            import chromadb
+            return chromadb.PersistentClient(path=abs_path)  # type: ignore
+        except Exception as e:  # pragma: no cover - environment specific
+            tried.append((cand, str(e)))
+            # Continue to next candidate
+            continue
+
+    _logger.error("Failed to initialize persistent Chroma client; attempts=%s. Using in-memory fallback.", tried)
+    import chromadb
+    return chromadb.Client()  # type: ignore
+
+_client = _init_chroma_client()
 
 # Using a default embedding function for the collections, though we'll be providing our own embeddings.
 # This is required by ChromaDB.

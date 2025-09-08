@@ -26,8 +26,8 @@ api_bp = Blueprint("api", __name__, url_prefix="/api")
 logger = get_logger()
 
 ALLOWED_EXTENSIONS = {"pdf", "docx", "txt"}
-UPLOAD_FOLDER = os.getenv("UPLOAD_FOLDER", "corpus_raw/")
-CLEAN_FOLDER = os.getenv("CLEAN_FOLDER", "corpus_clean/")
+UPLOAD_FOLDER = os.getenv("UPLOAD_FOLDER", "/data/corpus_raw")
+CLEAN_FOLDER = os.getenv("CLEAN_FOLDER", "/data/corpus_clean")
 os.makedirs(UPLOAD_FOLDER, exist_ok=True)
 os.makedirs(CLEAN_FOLDER, exist_ok=True)
 
