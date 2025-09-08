@@ -16,8 +16,8 @@ from datetime import datetime, timezone
 logger = get_logger()
 
 API_KEY = os.getenv("OPENAI_API_KEY")
-MANIFEST_DIR = os.getenv("MANIFEST_DIR", "data/manifest")
-CHUNKS_DIR = os.getenv("CHUNKS_DIR", "data/chunks")
+MANIFEST_DIR = os.getenv("MANIFEST_DIR", "/data/manifest")
+CHUNKS_DIR = os.getenv("CHUNKS_DIR", "/data/chunks")
 
 def ocr_page(page: fitz.Page, zoom: float = 2.0) -> str:
     mat = fitz.Matrix(zoom, zoom)
@@ -263,7 +263,7 @@ def upsert_manifest_record(text: str, size: str, doc_id: str, sha256: str, sourc
     manifest_path = MANIFEST_DIR + "/manifest.jsonl"
     
     try:
-        os.makedirs(os.path.dirname(MANIFEST_DIR), exist_ok=True)
+        os.makedirs(MANIFEST_DIR, exist_ok=True)
         
         with open(manifest_path, "a", encoding="utf-8") as f:
             f.write(line)

@@ -40,7 +40,7 @@ from .logger import get_logger
 logger = get_logger()
 
 DEFAULT_MODEL = os.getenv("EMBEDDING_MODEL", "text-embedding-3-large")
-CHROMA_DATA_PATH = "chroma_data"
+CHROMA_DATA_PATH = "/data/chroma_db"
 CHROMA_COLLECTION = "techtrans_rag"
 
 

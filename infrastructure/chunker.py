@@ -364,16 +364,13 @@ def chunk_doc(text: str, doc_id: str, max_chars: int = 1200, overlap: int = 150,
 			rec['next_id'] = chunk_metadata_records[i+1]['index']
 
 	# Write / upsert JSONL file
-	os.makedirs(os.path.dirname(CHUNKS_DIR), exist_ok=True)
+	os.makedirs(CHUNKS_DIR, exist_ok=True)
 	records = json.dumps(chunk_metadata_records, ensure_ascii=False, indent=0)
 	path = os.path.join(CHUNKS_DIR, "chunks.jsonl")
 
 	try:
-		with open(path, "r+", encoding="utf-8") as f:
-			existing = f.read()
-			f.seek(0)
-			updated = existing + "\n" + records if existing else records
-			f.write(updated)
+		with open(path, "a", encoding="utf-8") as f:
+			f.write(records)
 		logger.info(f"Appended {len(chunk_metadata_records)} chunk records to existing chunks file {path}")
 	except FileNotFoundError:
 		with open(path, "w", encoding="utf-8") as f:

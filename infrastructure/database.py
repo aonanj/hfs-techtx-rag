@@ -27,7 +27,7 @@ SEG_VER = int(os.getenv("SEG_VER", "1"))
 # ---------------------------------------------------------------------------
 # ChromaDB client setup (with HuggingFace / read-only filesystem resilience)
 # ---------------------------------------------------------------------------
-CHROMA_PATH = os.getenv("CHROMA_PATH", "chroma_db")
+CHROMA_PATH = os.getenv("CHROMA_PATH", "/data/chroma_db")
 
 def _init_chroma_client():
     """Initialize a Chroma client with fallbacks.
@@ -37,7 +37,7 @@ def _init_chroma_client():
       2. /tmp/chroma_db (writable in most containerized envs incl. HF Spaces)
       3. In-memory (non-persistent) client as last resort
     """
-    candidates: list[Optional[str]] = [CHROMA_PATH, "/tmp/chroma_db"]
+    candidates: list[Optional[str]] = [CHROMA_PATH, "/data/chroma_db"]
     tried: list[tuple[Optional[str], str]] = []
 
     for cand in candidates:
