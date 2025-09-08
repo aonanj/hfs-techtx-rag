@@ -226,6 +226,9 @@ class Chunk:
     page_end: Optional[int] = None
     section_number: Optional[str] = None
     section_title: Optional[str] = None
+    path: Optional[str] = None
+    numbers_present: Optional[bool] = None
+    definition_terms: Optional[str] = None
     clause_type: Optional[str] = None
     tok_ver: int = TOK_VER
     seg_ver: int = SEG_VER
@@ -381,12 +384,22 @@ def add_document(*, sha256, title=None, source_path=None, doc_type=None, jurisdi
 
 def add_chunk(doc_id: int, chunk_id: int, text: str, chunk_index: int, token_count: int | None = None,
               page_start: int | None = None, page_end: int | None = None, section_number: str | None = None,
-              section_title: str | None = None, clause_type: str | None = None, tok_ver: int = TOK_VER, seg_ver: int = SEG_VER):
-    
+              section_title: str | None = None, path: str | None = None, numbers_present: bool | None = None, definition_terms: str | None = None,
+              clause_type: str | None = None, tok_ver: int = TOK_VER, seg_ver: int = SEG_VER):
+
+    # Convert definition_terms list to comma-separated string for ChromaDB metadata
+    definition_terms_str = None
+    if definition_terms is not None:
+        if isinstance(definition_terms, list):
+            definition_terms_str = ", ".join(str(term) for term in definition_terms)
+        else:
+            definition_terms_str = str(definition_terms)
+
     metadata: Dict[str, Any] = {
         "doc_id": doc_id, "chunk_index": chunk_index, "token_count": token_count,
         "page_start": page_start, "page_end": page_end, "section_number": section_number,
-        "section_title": section_title, "clause_type": clause_type, "tok_ver": tok_ver, "seg_ver": seg_ver,
+        "section_title": section_title, "path": path, "numbers_present": numbers_present,
+        "definition_terms": definition_terms_str, "clause_type": clause_type, "tok_ver": tok_ver, "seg_ver": seg_ver,
     }
     metadata = {k: v for k, v in metadata.items() if v is not None}
 

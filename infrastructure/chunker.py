@@ -314,12 +314,56 @@ def chunk_doc(text: str, doc_id: str, max_chars: int = 1200, overlap: int = 150,
 	for idx, (chunk_text, page_s, page_e) in enumerate(chunk_specs):
 		
 		chunk_data = get_chunk_info(text, chunk_text)
-		sec_number = chunk_data.get("section_number")
-		section_title = chunk_data.get("section_title")
-		clause_type = chunk_data.get("clause_type")
-		path = chunk_data.get("path")
-		numbers_present = chunk_data.get("numbers_present")
-		definition_terms = chunk_data.get("definition_terms")
+		sec_number_raw = chunk_data.get("section_number")
+		section_title_raw = chunk_data.get("section_title")
+		clause_type_raw = chunk_data.get("clause_type")
+		path_raw = chunk_data.get("path")
+		numbers_present_raw = chunk_data.get("numbers_present")
+		definition_terms_raw = chunk_data.get("definition_terms")
+
+		# Convert numbers_present to boolean
+		numbers_present = None
+		if numbers_present_raw is not None:
+			if isinstance(numbers_present_raw, bool):
+				numbers_present = numbers_present_raw
+			elif isinstance(numbers_present_raw, str):
+				numbers_present = numbers_present_raw.strip().lower() in {"true", "yes", "1"}
+
+		# Convert definition_terms to list if it's a string or ensure it's a list
+		definition_terms = None
+		if definition_terms_raw is not None:
+			if isinstance(definition_terms_raw, list):
+				definition_terms = ", ".join(str(term) for term in definition_terms_raw)
+			else:
+				definition_terms = str(definition_terms_raw)
+		
+		sec_number = None
+		if sec_number_raw is not None:
+			if isinstance(sec_number_raw, list):
+				sec_number = ", ".join(str(num) for num in sec_number_raw)
+			else:
+				sec_number = str(sec_number_raw)
+	
+		section_title = None
+		if section_title_raw is not None:
+			if isinstance(section_title_raw, list):
+				section_title = ", ".join(str(title) for title in section_title_raw)
+			else:
+				section_title = str(section_title_raw)
+		
+		clause_type = None
+		if clause_type_raw is not None:
+			if isinstance(clause_type_raw, list):
+				clause_type = ", ".join(str(ctype) for ctype in clause_type_raw)
+			else:
+				clause_type = str(clause_type_raw)
+		
+		path = None
+		if path_raw is not None:
+			if isinstance(path_raw, list):
+				path = ", ".join(str(p) for p in path_raw)
+			else:
+				path = str(path_raw)
 
 		chunk_id = start_chunk_id + idx
 
@@ -333,6 +377,9 @@ def chunk_doc(text: str, doc_id: str, max_chars: int = 1200, overlap: int = 150,
 			section_number=sec_number,
 			section_title=section_title,
 			clause_type=clause_type,
+			path=path,
+			numbers_present=numbers_present,
+			definition_terms=definition_terms,
 		)
 		logger.info("Persisted chunk %s (pages %d-%d) for doc_id=%s", chunk_id, page_s, page_e, doc_id)
 
