@@ -67,6 +67,42 @@ def _init_chroma_client():
 
 _client = _init_chroma_client()
 
+# ---------------------------------------------------------------------------
+# Ensure writable HOME / cache dirs (HF Spaces & read-only root fix)
+# ---------------------------------------------------------------------------
+def _ensure_writable_caches():  # pragma: no cover (env specific)
+    try:
+        current_home = os.path.expanduser("~")
+        # If home resolves to root or isn't writable, pick a fallback
+        if current_home == "/" or not os.access(current_home, os.W_OK):
+            for cand in ["/data", "/home/user", "/tmp"]:
+                try:
+                    os.makedirs(cand, exist_ok=True)
+                    test_path = os.path.join(cand, ".home_write_test")
+                    with open(test_path, "w", encoding="utf-8") as f:
+                        f.write("ok")
+                    os.remove(test_path)
+                    os.environ["HOME"] = cand
+                    _logger.warning(f"Reset HOME to writable directory: {cand}")
+                    current_home = cand
+                    break
+                except Exception:  # continue trying fallbacks
+                    continue
+
+        # Set cache related env vars if absent
+        cache_base = os.path.join(os.environ.get("HOME", current_home), ".cache")
+        for var in ["XDG_CACHE_HOME", "HF_HOME", "TRANSFORMERS_CACHE"]:
+            if not os.getenv(var):
+                try:
+                    os.makedirs(cache_base, exist_ok=True)
+                    os.environ[var] = cache_base
+                except Exception:
+                    pass
+    except Exception as e:
+        _logger.warning(f"Cache/HOME setup skipped due to error: {e}")
+
+_ensure_writable_caches()
+
 # Using a default embedding function for the collections, though we'll be providing our own embeddings.
 # This is required by ChromaDB.
 # The type hint for embedding_function is complex, and mypy has issues with it.
@@ -155,6 +191,45 @@ def init_db():
     _documents_collection = _client.get_or_create_collection(name="documents", embedding_function=default_ef) # type: ignore
     _chunks_collection = _client.get_or_create_collection(name="chunks", embedding_function=default_ef) # type: ignore
     _logger.info("ChromaDB collections ensured.")
+
+
+def reset_chroma_collections() -> bool:
+    """Delete known Chroma collections if they exist.
+
+    Returns True if the operation completed (even if some collections did not exist).
+    """
+    try:
+        for name in ["documents", "chunks", "techtrans_rag"]:
+            try:
+                _client.delete_collection(name=name)  # type: ignore
+                _logger.info("Deleted Chroma collection '%s'", name)
+            except Exception:
+                # Collection might not exist – ignore
+                pass
+        return True
+    except Exception as e:  # pragma: no cover - defensive
+        _logger.error("Failed resetting Chroma collections: %s", e)
+        return False
+
+
+def rebuild_chroma_client() -> None:
+    """Rebuild the underlying Chroma client (e.g., after filesystem wipe)."""
+    global _client
+    try:
+        _logger.info("Rebuilding Chroma client after data reset.")
+        _client = _init_chroma_client()
+        init_db()
+    except Exception as e:  # pragma: no cover - defensive
+        _logger.error("Failed to rebuild Chroma client: %s", e)
+
+
+def full_reset_chroma() -> bool:
+    """Convenience helper: delete collections and recreate them fresh."""
+    ok = reset_chroma_collections()
+    if not ok:
+        return False
+    init_db()
+    return True
 
 def get_session():
     return None

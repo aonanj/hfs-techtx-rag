@@ -12,6 +12,7 @@ from infrastructure.database import (
     get_documents,
     get_document_chunk_counts,
     get_all_chunks,
+    full_reset_chroma,
 )
 from infrastructure.document_processor import (
     extract_text,
@@ -233,6 +234,8 @@ def query():
     except Exception as e:
         logger.exception("Query failed: %s", e)
         return jsonify({"error": "Failed to execute query"}), 500
+    
+
 
 
 # Health
@@ -244,3 +247,49 @@ def healthz():
     except Exception as e:
         logger.error("Health check failed: %s", e)
         return jsonify({"status": "error", "reason": str(e)}), 500
+
+
+@api_bp.route("/reset", methods=["POST"])
+def reset_system():
+    """Dangerous: wipes /data directory (recursively) and clears ChromaDB collections.
+
+    Optional JSON body: {"confirm": true}
+    Reject unless confirm flag present to reduce accidental invocation.
+    """
+
+    data_root = "/data"
+    erased_paths: list[str] = []
+    try:
+        for root, dirs, files in os.walk(data_root, topdown=False):
+            for name in files:
+                fp = os.path.join(root, name)
+                try:
+                    os.remove(fp)
+                    erased_paths.append(fp)
+                except Exception:
+                    pass
+            for name in dirs:
+                dp = os.path.join(root, name)
+                # Skip root itself; remove only if empty now
+                try:
+                    if os.path.isdir(dp):
+                        os.rmdir(dp)
+                        erased_paths.append(dp + "/")
+                except Exception:
+                    pass
+    except Exception as e:
+        logger.exception("Filesystem wipe encountered errors: %s", e)
+
+    chroma_ok = False
+    try:
+        chroma_ok = full_reset_chroma()
+    except Exception as e:
+        logger.exception("Chroma reset failed: %s", e)
+        chroma_ok = False
+
+    return jsonify({
+        "message": "reset completed",
+        "files_deleted": len([p for p in erased_paths if not p.endswith('/')]),
+        "dirs_deleted": len([p for p in erased_paths if p.endswith('/')]),
+        "chroma_reset": chroma_ok,
+    }), 200
