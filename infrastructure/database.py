@@ -83,10 +83,7 @@ def _init_chroma_client():
 
     base_candidates: list[Optional[str]] = [
         CHROMA_PATH,
-        "/data/chroma_db",
-        "/home/user/chroma_db",
-        "/tmp/chroma_db",
-    ]
+        "/data/chroma_db"]
     if force_tmp:
         base_candidates = ["/tmp/chroma_db"]  # override order if forced
 
@@ -96,7 +93,6 @@ def _init_chroma_client():
         if c and c not in seen:
             candidates.append(c)
             seen.add(c)
-    candidates.append(None)  # final in-memory fallback
 
     tried: list[tuple[Optional[str], str]] = []
 
@@ -104,7 +100,7 @@ def _init_chroma_client():
         try:
             os.makedirs(path, exist_ok=True)
             test_file = os.path.join(path, ".write_test")
-            with open(test_file, "w", encoding="utf-8") as tf:
+            with open(test_file, "a", encoding="utf-8") as tf:
                 tf.write("ok")
             os.remove(test_file)
             return True
