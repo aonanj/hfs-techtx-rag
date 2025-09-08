@@ -55,4 +55,4 @@ RUN pip install --no-cache-dir /wheels/*
 
 COPY . .
 
-CMD ["bash", "-lc", "exec gunicorn 'app:create_app()' --bind 0.0.0.0:${PORT} --workers ${WEB_CONCURRENCY:-2} --threads ${GUNICORN_THREADS:-8} --timeout ${GUNICORN_TIMEOUT:-1200} --access-logfile - --error-logfile -"]
+CMD ["bash", "-lc", "exec gunicorn 'app:create_app()' --bind 0.0.0.0:${PORT} --workers 1 --threads 1 --timeout ${GUNICORN_TIMEOUT:-1200} --access-logfile - --error-logfile -"]

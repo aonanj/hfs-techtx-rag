@@ -2,6 +2,7 @@ from flask import Flask
 from flask_cors import CORS
 import os
 import pathlib
+import chromadb
 from infrastructure.logger import setup_logger, get_logger
 from routes.web import web_bp
 from routes.api import api_bp
@@ -13,10 +14,8 @@ setup_logger()
 def create_app():
     app = Flask(__name__, template_folder='static')
     CORS(app)
-    app.config.from_object('config.Config')
-    logger = get_logger()
     for k,v in {
-        "PERSIST_DIRECTORY": "/data/chroma_data",
+        "PERSIST_DIRECTORY": "/data/chroma_db",
         "XDG_CACHE_HOME": "/data/.cache",
         "HF_HOME": "/data/.huggingface",
         "HUGGINGFACE_HUB_CACHE": "/data/.cache/huggingface/hub",
@@ -25,27 +24,12 @@ def create_app():
         "HOME": "/data",
     }.items():
         os.environ.setdefault(k, v)
-        try:
-            pathlib.Path(v).mkdir(parents=True, exist_ok=True)
-        except (OSError, PermissionError) as e:
-            # If we can't create the directory (read-only filesystem), 
-            # try fallback locations
-            if "/data" in v:
-                fallback = v.replace("/data", "/tmp")
-                try:
-                    pathlib.Path(fallback).mkdir(parents=True, exist_ok=True)
-                    os.environ[k] = fallback
-                    logger = get_logger() if 'get_logger' in globals() else None
-                    if logger:
-                        logger.error(f"Fallback: {k} set to {fallback} due to: {e}")
-                    else:
-                        print(f"Warning: {k} set to {fallback} due to: {e}")
-                except Exception:
-                    # If fallback also fails, just continue without creating the directory
-                    pass
+        pathlib.Path(v).mkdir(parents=True, exist_ok=True)
+
 
     app.register_blueprint(web_bp)
     app.register_blueprint(api_bp)
+    client = chromadb.PersistentClient(path=os.environ["PERSIST_DIRECTORY"])
 
     with app.app_context():
         logger = get_logger()

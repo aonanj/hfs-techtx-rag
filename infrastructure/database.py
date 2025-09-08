@@ -49,7 +49,7 @@ def _setup_cache_dir():
 
 _setup_cache_dir()
 
-CHROMA_PATH = os.getenv("CHROMA_PATH", "/data/chroma_data")
+CHROMA_PATH = os.getenv("CHROMA_PATH", "/data/chroma_db")
 
 def _init_chroma_client():
     """Initialize a Chroma client with robust write tests & fallbacks.
@@ -75,7 +75,7 @@ def _init_chroma_client():
     force_tmp = os.getenv("CHROMA_FORCE_TMP") in {"1", "true", "yes", "on"}
 
     candidates: list[Optional[str]] = [
-        "/data/chroma_data"]
+        "/data/chroma_db"]
     if force_tmp:
         candidates = ["/data/db_tmp"]  # override order if forced
 
