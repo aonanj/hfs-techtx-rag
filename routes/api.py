@@ -29,8 +29,6 @@ logger = get_logger()
 ALLOWED_EXTENSIONS = {"pdf", "docx", "txt"}
 UPLOAD_FOLDER = os.getenv("UPLOAD_FOLDER", "/data/corpus_raw")
 CLEAN_FOLDER = os.getenv("CLEAN_FOLDER", "/data/corpus_clean")
-os.makedirs(UPLOAD_FOLDER, exist_ok=True)
-os.makedirs(CLEAN_FOLDER, exist_ok=True)
 
 def allowed_file(filename: str) -> bool:
     return "." in filename and filename.rsplit(".", 1)[1].lower() in ALLOWED_EXTENSIONS
@@ -54,7 +52,8 @@ def add_doc():
 
     clean_text = extract_text(file=file)
     content_sha = sha256_text(clean_text)
-
+    os.makedirs(UPLOAD_FOLDER, exist_ok=True)
+    os.makedirs(CLEAN_FOLDER, exist_ok=True)
     doc = get_document_by_sha(content_sha)
     title = None
     doc_id_val = None
