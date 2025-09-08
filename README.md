@@ -1,11 +1,12 @@
 ---
-title: Shiny for Python template
+title: Tech Trans Rag
 emoji: 🌍
 colorFrom: yellow
 colorTo: indigo
 sdk: docker
 pinned: false
 license: mit
+short_description: tech-trans-rag
 ---
 
 This is a templated Space for [Shiny for Python](https://shiny.rstudio.com/py/). 
