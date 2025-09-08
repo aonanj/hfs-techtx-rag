@@ -99,7 +99,7 @@ def _init_chroma_client():
     for cand in candidates:
         if cand is None:
             _logger.error("ChromaDB falling back to in-memory client (no persistence).")
-            return chromadb.Client()  # type: ignore
+            return chromadb.PersistentClient(path=os.environ["PERSIST_DIRECTORY"])  # type: ignore
 
         abs_path = os.path.abspath(cand)
         _logger.error(f"Attempting Chroma PersistentClient at {abs_path}")
@@ -126,7 +126,7 @@ def _init_chroma_client():
 
         _logger.info(f"Initializing Chroma PersistentClient at {abs_path}")
         try:
-            client = chromadb.PersistentClient(path=abs_path)
+            client = chromadb.PersistentClient(path=os.environ["PERSIST_DIRECTORY"])
         except Exception as e:  # immediate failure
             tried.append((abs_path, f"create failed: {e}"))
             _logger.error(f"Chroma path {abs_path} not writable for DB operations, trying next candidate...")
@@ -179,7 +179,7 @@ def _init_chroma_client():
             continue
 
     _logger.error("Failed to initialize persistent Chroma client; attempts=%s. Using in-memory fallback.", tried)
-    return chromadb.Client()  # type: ignore
+    return chromadb.PersistentClient(path=os.environ["PERSIST_DIRECTORY"])  # type: ignore
 
 _client = _init_chroma_client()
 

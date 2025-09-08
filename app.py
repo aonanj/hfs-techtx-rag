@@ -29,7 +29,7 @@ def create_app():
 
     app.register_blueprint(web_bp)
     app.register_blueprint(api_bp)
-    client = chromadb.PersistentClient(path=os.environ["PERSIST_DIRECTORY"])
+
 
     with app.app_context():
         logger = get_logger()

@@ -57,7 +57,7 @@ def get_chroma_collection():
         model_name=DEFAULT_MODEL
     )
     
-    client = chromadb.PersistentClient(path=CHROMA_DATA_PATH)
+    client = chromadb.PersistentClient(path=os.environ["PERSIST_DIRECTORY"])
     
     # Pass the embedding function to the get_or_create_collection method
     collection = client.get_or_create_collection(name=CHROMA_COLLECTION)
