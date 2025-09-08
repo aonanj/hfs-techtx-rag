@@ -332,6 +332,16 @@
         </div>
     </div>
 
+    <div id="dangerZone" style="margin-top:28px; font-size:0.7rem; text-align:center; max-width:1200px; width:100%; opacity:0.65;">
+        <details>
+            <summary style="cursor:pointer;">Danger Zone</summary>
+            <div style="margin-top:10px;">
+                <button id="resetBtn" style="background:#660000; color:#fff; border:1px solid #aa2222; padding:8px 14px; border-radius:6px; cursor:pointer; font-size:0.75rem; letter-spacing:0.5px;">Reset / Wipe Corpus</button>
+                <p style="margin-top:8px; line-height:1.3;">This sends a POST to <code>/api/reset</code> and irreversibly deletes all files under <code>/data</code> and clears Chroma collections. Use only in development.</p>
+            </div>
+        </details>
+    </div>
+
     <script>
         // Character count for inputs
         function updateCharCount(inputId, counterId) {
@@ -426,6 +436,35 @@
                 responseDiv.innerHTML = `<span style="color:#e53e3e;">Error: ${err.message}</span>`;
             }
         });
+
+        // Reset handler
+        const resetBtn = document.getElementById('resetBtn');
+        if (resetBtn) {
+            resetBtn.addEventListener('click', async () => {
+                if (!confirm('This will DELETE all data under /data and clear embeddings. Continue?')) return;
+                resetBtn.disabled = true;
+                resetBtn.textContent = 'Resetting...';
+                try {
+                    const resp = await fetch('/api/reset', {
+                        method: 'POST',
+                        headers: { 'Content-Type': 'application/json' },
+                        body: JSON.stringify({ confirm: true })
+                    });
+                    const data = await resp.json().catch(() => ({}));
+                    if (!resp.ok) {
+                        alert('Reset failed: ' + (data.error || resp.statusText));
+                    } else {
+                        alert('Reset complete. Files deleted: ' + (data.files_deleted ?? 'n/a'));
+                        location.reload();
+                    }
+                } catch (e) {
+                    alert('Reset error: ' + e.message);
+                } finally {
+                    resetBtn.disabled = false;
+                    resetBtn.textContent = 'Reset / Wipe Corpus';
+                }
+            });
+        }
     </script>
 </body>
 </html>
