@@ -27,11 +27,34 @@ SEG_VER = int(os.getenv("SEG_VER", "1"))
 # ---------------------------------------------------------------------------
 # ChromaDB client setup (with HuggingFace / read-only filesystem resilience)
 # ---------------------------------------------------------------------------
-# Set a writable cache directory for ChromaDB
-CACHE_DIR = "/data/chroma_cache"
-os.environ["CHROMA_CACHE_DIR"] = CACHE_DIR
-if not os.path.exists(CACHE_DIR):
-    os.makedirs(CACHE_DIR)
+# Set a writable cache directory for ChromaDB with fallbacks
+def _setup_cache_dir():
+    """Set up a writable cache directory for ChromaDB with fallbacks."""
+    cache_candidates = [
+        "/data/chroma_cache",
+        "/tmp/chroma_cache", 
+        "/tmp/.cache/chroma"
+    ]
+    
+    for cache_dir in cache_candidates:
+        try:
+            os.makedirs(cache_dir, exist_ok=True)
+            # Test if writable
+            test_file = os.path.join(cache_dir, ".write_test")
+            with open(test_file, "w") as f:
+                f.write("test")
+            os.remove(test_file)
+            os.environ["CHROMA_CACHE_DIR"] = cache_dir
+            _logger.info(f"Using ChromaDB cache directory: {cache_dir}")
+            return cache_dir
+        except Exception:
+            continue
+    
+    # If all fail, don't set the cache dir and let ChromaDB handle it
+    _logger.warning("Could not set up ChromaDB cache directory, using default")
+    return None
+
+_setup_cache_dir()
 
 CHROMA_PATH = os.getenv("CHROMA_PATH", "/data/chroma_db")
 
@@ -40,10 +63,11 @@ def _init_chroma_client():
 
     Order of attempts:
       1. Provided/ default CHROMA_PATH (relative or absolute)
-      2. /tmp/chroma_db (writable in most containerized envs incl. HF Spaces)
-      3. In-memory (non-persistent) client as last resort
+      2. /data/chroma_db (writable in most containerized envs incl. HF Spaces)
+      3. /tmp/chroma_db (fallback for read-only filesystems)
+      4. In-memory (non-persistent) client as last resort
     """
-    candidates: list[Optional[str]] = [CHROMA_PATH, "/data/chroma_db"]
+    candidates: list[Optional[str]] = [CHROMA_PATH, "/data/chroma_db", "/tmp/chroma_db"]
     tried: list[tuple[Optional[str], str]] = []
 
     for cand in candidates:
@@ -61,7 +85,31 @@ def _init_chroma_client():
             os.remove(test_file)
             _logger.info(f"Initializing Chroma PersistentClient at {abs_path}")
             import chromadb
-            return chromadb.PersistentClient(path=os.environ["PERSIST_DIRECTORY"])
+            
+            # Try to create the client
+            try:
+                client = chromadb.PersistentClient(path=abs_path)
+                # Test the client by attempting a simple operation
+                # This helps catch database corruption or "table already exists" errors
+                collections = client.list_collections()
+                _logger.info(f"Successfully connected to ChromaDB at {abs_path}, found {len(collections)} collections")
+                return client
+            except Exception as client_e:
+                _logger.warning(f"Client initialization failed for {abs_path}: {client_e}")
+                # If it's a table exists error or similar corruption, try to reset
+                if any(phrase in str(client_e).lower() for phrase in ["already exists", "table", "corruption"]):
+                    _logger.info(f"Attempting to reset/clean ChromaDB at {abs_path}")
+                    try:
+                        # Try to reset the database
+                        temp_client = chromadb.PersistentClient(path=abs_path)
+                        temp_client.reset()
+                        return chromadb.PersistentClient(path=abs_path)
+                    except Exception as reset_e:
+                        _logger.warning(f"Reset failed for {abs_path}: {reset_e}")
+                        # If reset fails, this path is unusable, continue to next candidate
+                        raise client_e
+                else:
+                    raise client_e
         except Exception as e:  # pragma: no cover - environment specific
             tried.append((cand, str(e)))
             # Continue to next candidate
@@ -115,14 +163,26 @@ _ensure_writable_caches()
 # Using type: ignore to suppress the error.
 default_ef = embedding_functions.DefaultEmbeddingFunction()
 
-_documents_collection = _client.get_or_create_collection(
-    name="documents",
-    embedding_function=default_ef # type: ignore
-)
-_chunks_collection = _client.get_or_create_collection(
-    name="chunks",
-    embedding_function=default_ef # type: ignore
-)
+def _init_collections():
+    """Initialize ChromaDB collections with error handling."""
+    global _documents_collection, _chunks_collection
+    try:
+        _documents_collection = _client.get_or_create_collection(
+            name="documents",
+            embedding_function=default_ef # type: ignore
+        )
+        _chunks_collection = _client.get_or_create_collection(
+            name="chunks",
+            embedding_function=default_ef # type: ignore
+        )
+        _logger.info("Successfully initialized ChromaDB collections.")
+    except Exception as e:
+        _logger.error(f"Failed to initialize collections: {e}")
+        # Re-raise the exception to be handled by the application
+        raise
+
+# Initialize collections
+_init_collections()
 
 # ---------------------------------------------------------------------------
 # Data classes (replacing ORM)
@@ -193,10 +253,12 @@ class Embedding:
 # ---------------------------------------------------------------------------
 def init_db():
     """Initializes ChromaDB collections."""
-    global _documents_collection, _chunks_collection
-    _documents_collection = _client.get_or_create_collection(name="documents", embedding_function=default_ef) # type: ignore
-    _chunks_collection = _client.get_or_create_collection(name="chunks", embedding_function=default_ef) # type: ignore
-    _logger.info("ChromaDB collections ensured.")
+    try:
+        _init_collections()
+        _logger.info("ChromaDB collections ensured.")
+    except Exception as e:
+        _logger.error(f"Failed to initialize database collections: {e}")
+        raise
 
 
 def reset_chroma_collections() -> bool:
@@ -215,6 +277,24 @@ def reset_chroma_collections() -> bool:
         return True
     except Exception as e:  # pragma: no cover - defensive
         _logger.error("Failed resetting Chroma collections: %s", e)
+        return False
+
+
+def reset_database() -> bool:
+    """Reset the entire ChromaDB database.
+    
+    This is useful for recovering from database corruption issues.
+    Returns True if successful.
+    """
+    try:
+        _logger.info("Resetting entire ChromaDB database...")
+        _client.reset()
+        # Re-initialize collections after reset
+        _init_collections()
+        _logger.info("Database reset and collections re-initialized successfully.")
+        return True
+    except Exception as e:
+        _logger.error(f"Failed to reset database: {e}")
         return False
 
 
