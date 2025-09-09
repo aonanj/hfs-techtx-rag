@@ -18,7 +18,7 @@ TOK_VER = int(os.getenv("TOK_VER", "1"))
 SEG_VER = int(os.getenv("SEG_VER", "1"))
 
 # ---------------------------------------------------------------------------
-# ChromaDB client setup (with HuggingFace / read-only filesystem resilience)
+# ChromaDB setup (with HuggingFace / read-only filesystem resilience)
 # ---------------------------------------------------------------------------
 # Set a writable cache directory for ChromaDB with fallbacks
 def _setup_cache_dir():
@@ -642,7 +642,7 @@ def get_embedding_counts_for_chunks(chunk_ids: List[int]) -> dict[int, int]:
         embedding_counts[chunk_id] = 0
     
     # Check which chunks have embeddings
-    if chunk_data['ids'] and chunk_data['embeddings']:
+    if chunk_data['ids'] and chunk_data['embeddings'] is not None:
         for i, chunk_id_str in enumerate(chunk_data['ids']):
             chunk_id = int(chunk_id_str)
             embedding = chunk_data['embeddings'][i]

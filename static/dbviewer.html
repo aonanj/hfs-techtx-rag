@@ -12,7 +12,23 @@
         }
         .shell { width:100%; max-width:1200px; display:flex; flex-direction:column; gap:26px; }
         .panel { background:#333; border-radius:20px; padding:28px 32px; box-shadow:0 18px 50px rgba(0,0,0,.5); }
-        h1 { font-size:2.2rem; font-weight:500; text-shadow:0 4px 8px rgba(0,0,0,.5); margin:0 0 8px; }
+        .header-title {
+            color: #fff;
+            font-size: 2.5rem;
+            font-weight: 500;
+            text-decoration: underline;
+            text-shadow: 0 4px 8px rgba(0, 0, 0, 0.5);
+            text-align: center;
+            margin: 10px;
+        }
+
+        .header-subtitle {
+            color: #ccc;
+            font-size: 0.85rem;
+            font-weight: 400;
+            font-style: italic;
+            margin: 5px;
+        }
         p.sub { font-size:.8rem; color:#ccc; font-style:italic; line-height:1.5; }
         a { color:#87CEFA; text-decoration:none; }
         a:hover { text-decoration:underline; }
@@ -59,9 +75,9 @@
 <body>
     <div class="shell">
         <div class="panel">
-            <h1>Database Viewer</h1>
-            <p class="sub">Browse documents and chunks stored in the ChromaDB database. Values longer than 100 characters are truncated - click to view the complete content.</p>
-            
+            <h1 class="header-title">Database Viewer</h1>
+            <p class="header-subtitle">Browse documents and chunks stored in the ChromaDB database. Values are truncated - click to view the complete content.</p>
+
             <div class="view-toggles">
                 <button id="documentsTab" class="active" data-tab="documents">Documents</button>
                 <button id="chunksTab" data-tab="chunks">Chunks</button>

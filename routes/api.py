@@ -1,6 +1,7 @@
 # api.py
 import os
 from flask import Blueprint, request, jsonify, send_from_directory
+from flask_cors import CORS
 from werkzeug.utils import secure_filename
 from infrastructure.logger import get_logger
 
@@ -30,6 +31,7 @@ from infrastructure.chunker import chunk_doc
 from infrastructure.vector_search import find_nearest_neighbors
 
 api_bp = Blueprint("api", __name__, url_prefix="/api")
+CORS(api_bp)
 logger = get_logger()
 RESET_PASSWORD = os.getenv("RESET_PASSWORD")
 
@@ -106,7 +108,7 @@ def add_doc():
 
         doc = update_document(doc_id=doc_id_val, updates={"source_path": raw_path})
 
-        manifest_jsonl_line = upsert_manifest_record(
+        upsert_manifest_record(
             sha256=content_sha,
             title=title,
             source_path=raw_path,
