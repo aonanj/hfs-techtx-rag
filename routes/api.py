@@ -4,6 +4,7 @@ from flask import Blueprint, request, jsonify, send_from_directory
 from flask_cors import CORS
 from werkzeug.utils import secure_filename
 from infrastructure.logger import get_logger
+from datetime import datetime
 
 from infrastructure.database import (
     init_db,
@@ -205,6 +206,14 @@ def list_documents():
     
     out = []
     for d in docs:
+        effective_date = getattr(d, 'effective_date', None)
+        if effective_date is not None and isinstance(effective_date, datetime):
+            effective_date = effective_date.isoformat()
+        elif effective_date is not None and isinstance(effective_date, str):
+            try:
+                effective_date = datetime.fromisoformat(effective_date)
+            except Exception:
+                effective_date = None
         doc_data = {
             "doc_id": int(getattr(d, 'doc_id')),
             "sha256": d.sha256,
@@ -216,7 +225,7 @@ def list_documents():
             "governing_law": getattr(d, "governing_law", None),
             "party_roles": getattr(d, "party_roles", None),
             "industry": getattr(d, "industry", None),
-            "effective_date": d.effective_date.isoformat() if d.effective_date else None,
+            "effective_date": effective_date or None,
             "chunk_count": counts.get(int(getattr(d, 'doc_id')), 0),
         }
         out.append(doc_data)
@@ -638,6 +647,14 @@ def dbviewer_documents():
     
     out = []
     for d in docs:
+        effective_date = d.effective_date
+        if effective_date is not None and isinstance(effective_date, datetime):
+            effective_date = effective_date.isoformat()
+        elif effective_date is not None and isinstance(effective_date, str):
+            try:
+                effective_date = datetime.fromisoformat(effective_date).isoformat()
+            except Exception:
+                effective_date = None
         doc_data = {
             "doc_id": int(getattr(d, 'doc_id')),
             "sha256": d.sha256,
@@ -649,7 +666,7 @@ def dbviewer_documents():
             "governing_law": getattr(d, "governing_law", None),
             "party_roles": getattr(d, "party_roles", None),
             "industry": getattr(d, "industry", None),
-            "effective_date": d.effective_date.isoformat() if d.effective_date else None,
+            "effective_date": effective_date or None,
             "chunk_count": counts.get(int(getattr(d, 'doc_id')), 0),
         }
         out.append(doc_data)
