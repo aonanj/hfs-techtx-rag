@@ -60,4 +60,4 @@ COPY entrypoint.sh /entrypoint.sh
 RUN chmod +x /entrypoint.sh
 ENTRYPOINT ["/entrypoint.sh"]
 
-CMD ["bash", "-lc", "exec gunicorn 'app:create_app()' --bind 0.0.0.0:${PORT} --workers 1 --threads 1 --timeout ${GUNICORN_TIMEOUT:-1200} --access-logfile - --error-logfile -"]
+CMD ["bash", "-lc", "exec gunicorn 'app:create_app()' --bind 0.0.0.0:${PORT} --workers 1 --threads 1 --timeout ${GUNICORN_TIMEOUT:-3000} --access-logfile - --error-logfile -"]

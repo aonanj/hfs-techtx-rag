@@ -454,12 +454,6 @@
 
                 const parts = [];
 
-                // Small meta lines for query and filters
-                parts.push(`<div class="meta-line"><u>Query:</u> ${escape(data.query)}</div>`);
-                if (data.filters && (data.filters.doc_type || data.filters.jurisdiction)) {
-                    parts.push(`<div class="meta-line"><u>Filters:</u> doc_type=${escape(data.filters.doc_type || '—')} jurisdiction=${escape(data.filters.jurisdiction || '—')}</div>`);
-                }
-
                 // Response section (from LLM)
                 let answerText = '';
                 let sources = [];
