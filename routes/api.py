@@ -131,6 +131,13 @@ def add_doc():
 
         logger.error("INFO: Added document id=%s, sha256=%s, title=%s, doc_type=%s, jurisdiction=%s", doc_id_val, content_sha, title, doc_type, jurisdiction)
 
+        try:
+            chunks = chunk_doc(text=clean_text, doc_id=doc_id_val)
+            logger.info("Chunked document into %d chunks", len(chunks))
+        except Exception as e:
+            logger.exception("Chunking failed: %s", e)
+            pass
+
     else:
         doc_id_val = getattr(doc, "doc_id", 0)
         title = getattr(doc, "title", None)
@@ -139,13 +146,6 @@ def add_doc():
             doc = add_document(sha256=content_sha, doc_type=doc_type, jurisdiction=jurisdiction)
         except Exception:
             pass
-
-    try:
-        chunks = chunk_doc(text=clean_text, doc_id=doc_id_val)
-        logger.info("Chunked document into %d chunks", len(chunks))
-    except Exception as e:
-        logger.exception("Chunking failed: %s", e)
-        pass
 
     return jsonify({
         "message": "ok",

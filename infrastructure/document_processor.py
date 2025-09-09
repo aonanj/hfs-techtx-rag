@@ -46,7 +46,7 @@ def get_manifest_info(text: str) -> Dict[str, Optional[str]]:
         client = OpenAI(api_key=API_KEY)
         prompt = (
             f"""
-            You are an expert in legal research and anlysis, specializing in technology transactions. Examine the attached technology transactions document, and then identify respective values for each of the following keys: the role(s) of the party or parties (use only the roles, e.g., licensor, licensee; do not include the names of the parties), the governing law (use standard legal abbreviations, e.g., US-CA, US-FED, IL, etc.), the industry (use only one or two words), and the effective date of the agreement. Consider the substantive meaning of words (e.g., "Page 1 of 12" is not likely to be the governing law), placement in the document, surrounding text, applicable section, and any other factors that might inform your decision. Format the date in a string "YYYY-MM-DD".
+            You are an expert in legal research and anlysis, specializing in technology transactions. Examine the attached technology transactions document, and then identify respective values for each of the following keys: the role(s) of the party or parties (use only the roles, e.g., licensor, licensee; do not include the names of the parties), the governing law (use standard legal abbreviations, e.g., US-CA, US-FED, IL, etc.), the industry (use 1-3 words, e.g., biotechnology, software, SaaS), and the effective date of the agreement. Consider the substantive meaning of words (e.g., "Page 1 of 12" is not likely to be the governing law), placement in the document, surrounding text, applicable section, and any other factors that might inform your decision. Format the date in a string "YYYY-MM-DD". If you are unable to identify a value for the governing law, use the jurisdiction, if available.
             Return a response in following JSON format only: 
             {{
                 "party_roles": party_roles, 
@@ -54,7 +54,7 @@ def get_manifest_info(text: str) -> Dict[str, Optional[str]]:
                 "industry": industry, 
                 "effective_date": effective_date
             }}. 
-            Do not return anything else outside of the JSON object. If you cannot identify a distinct value corresponding to one of the keys, respond with null for that key.
+            Do not return anything else outside of the JSON object. If you cannot identify a value corresponding to one of the keys, respond with null for that key.
             --- PAGE TEXT START ---\n
             {text}\n
             --- PAGE TEXT END ---
@@ -150,7 +150,7 @@ def extract_title_type_jurisdiction(text: str) -> Dict[str, Optional[str]]:
         client = OpenAI(api_key=API_KEY)
         prompt = (
             f"""
-            You are an expert in legal research and anlysis, specializing in technology transactions. Examine the attached legal document, which is a technology transactions document, and then identify the title, type of technology transactions document (e.g., IP agreement, NDA, license, MSA, etc.), and jurisdiction. Use an accepted legal abbreviation for the jurisdiction (e.g., US-CA, US-FED, FRG, etc.). If you are unable to identify the jurisdiction, use the governing law, if available. Consider the substantive meaning of words (e.g., "Page 1 of 12" is not likely to be the title), placement in the document, case of the letters, length, punctuation, justification, and any other factors that might inform your decision. If you cannot confidently identify a corresponding value for a field, respond with null for that field. Return only a JSON object, with no other characters outside the JSON object. The JSON object should have the following keys: title, doc_type, jurisdiction. For example: 
+            You are an expert in legal research and analysis, specializing in technology transactions. Examine the attached legal document, which is a technology transactions document, and then identify the title, type of technology transactions document (e.g., IP agreement, NDA, license, MSA, etc.), and jurisdiction. Avoid using proper names of the parties in the title. Try to use the type of legal document as the title -- e.g., IP Agreement, Master Services Agreement, Terms of Service, etc. Use an accepted legal abbreviation for the jurisdiction (e.g., US-CA, US-FED, FRG, etc.). Where appropriate, use an accepted legal abbreviation for the doc_type -- e.g., "MSA" for Master Services Agreement, "EULA" for End User License Agreement, etc. If you are unable to identify the jurisdiction, use the governing law, if available. Consider the substantive meaning of words (e.g., "Page 1 of 12" is not likely to be the title), placement in the document, case of the letters, length, punctuation, justification, and any other factors that might inform your decision. If you cannot confidently identify a corresponding value for a field, respond with null for that field. Return only a JSON object, with no other characters outside the JSON object. The JSON object should have the following keys: title, doc_type, jurisdiction. For example: 
             {{"title": title, "doc_type": doc_type, "jurisdiction": jurisdiction}}.
             --- PAGE TEXT START ---\n
             {text}\n
