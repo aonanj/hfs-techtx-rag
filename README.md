@@ -13,13 +13,13 @@ pinned: false
 
 A Flask-based Retrieval-Augmented Generation (RAG) application for document processing, embedding generation, and semantic search specific to technology transactions use cases in the legal domain.
 
-## 🌟 Features
+## 💡 Features
 
 - **Document Processing**: Upload and process PDF, DOCX, and text files
 - **Smart Chunking**: Intelligent document segmentation for optimal retrieval
 - **Vector Embeddings**: Generate embeddings using Hugging Face models
 - **Semantic Search**: ChromaDB-powered vector similarity search
-- **AI Chat Interface**: Interactive chat with document context using OpenAI or Claude
+- **Dynamic Corpus**: Corpus can be updated to increase knowledge base and customize responses to user preferences, including best practices, jurisdictions, and governing laws. 
 - **Web UI**: Clean, responsive interface for document management and chat
 - **REST API**: Full API access for programmatic integration
 - **Docker Support**: Containerized deployment with persistent data storage
@@ -48,7 +48,7 @@ A Flask-based Retrieval-Augmented Generation (RAG) application for document proc
     └── manifest.html   # Document manifest viewer
 ```
 
-## 🚀 Quick Start
+## 🛠️ Quick Start
 
 ### Environment Setup
 
@@ -123,7 +123,7 @@ A Flask-based Retrieval-Augmented Generation (RAG) application for document proc
 - `POST /api/chat` - Chat with document context
 - `GET /api/health` - Health check endpoint
 
-## 🔧 Configuration
+## ⚙️ Configuration
 
 ### Environment Variables
 
@@ -176,11 +176,11 @@ The Reset button in the web interface will prompt for this password before allow
 - **Vector Search**: ChromaDB-based semantic search capabilities
 - **Database**: Persistent storage with automatic initialization and reset capabilities
 
-## 📝 License
+## 🏴‍☠️ License
 
 This project is licensed under the MIT License - see the [LICENSE](LICENSE) file for details.
 
-## 🤝 Contributing
+## 📝 Contributing
 
 1. Fork the repository
 2. Create a feature branch
@@ -188,6 +188,6 @@ This project is licensed under the MIT License - see the [LICENSE](LICENSE) file
 4. Add tests if applicable
 5. Submit a pull request
 
-## 📞 Support
+## 📞 Contact
 
 For issues and questions, please use the GitHub issue tracker.

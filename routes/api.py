@@ -53,10 +53,9 @@ def add_doc():
         return jsonify({"error": "Unsupported file type"}), 400
 
     doc_type = request.form.get("doc_type") or None
-    jurisdiction = request.form.get("jurisdiction") or None
 
-    logger.info("Received upload: filename=%s, doc_type=%s, jurisdiction=%s",
-                file.filename, doc_type, jurisdiction)
+    logger.info("Received upload: filename=%s, doc_type=%s",
+                file.filename, doc_type)
 
     clean_text = extract_text(file=file)
     content_sha = sha256_text(clean_text)
@@ -69,11 +68,11 @@ def add_doc():
 
         doc_info = extract_title_type_jurisdiction(clean_text)
         title = doc_info.get("title") or file.filename.split('.')[0]
+        jurisdiction = None
         if not doc_type and "doc_type" in doc_info:
             doc_type = doc_info.get("doc_type")
-        if not jurisdiction and "jurisdiction" in doc_info:
+        if "jurisdiction" in doc_info:
             jurisdiction = doc_info.get("jurisdiction")
-
         max_doc_id = get_max_document_id()
 
         current_doc_id = max_doc_id + 1 if max_doc_id is not None else 0
@@ -123,6 +122,7 @@ def add_doc():
     else:
         doc_id_val = getattr(doc, "doc_id", 0)
         title = getattr(doc, "title", None)
+        jurisdiction = getattr(doc, "jurisdiction", None)
         try:
             doc = add_document(sha256=content_sha, doc_type=doc_type, jurisdiction=jurisdiction)
         except Exception:

@@ -292,10 +292,6 @@
                     <label for="docType" style="font-size:0.8rem; color:#ccc;">Document Type (optional)</label>
                     <input id="docType" name="doc_type" type="text" maxlength="128" placeholder="e.g., License Agreement" style="background:#222; border:2px solid #555; border-radius:8px; padding:10px; color:#fff; font-family:inherit; font-size:0.85rem;" />
                 </div>
-                <div style="flex:1; display:flex; flex-direction:column; gap:6px;">
-                    <label for="jurisdiction" style="font-size:0.8rem; color:#ccc;">Jurisdiction (optional)</label>
-                    <input id="jurisdiction" name="jurisdiction" type="text" maxlength="64" placeholder="e.g., US-CA" style="background:#222; border:2px solid #555; border-radius:8px; padding:10px; color:#fff; font-family:inherit; font-size:0.85rem;" />
-                </div>
             </div>
             
             <div class="selected-file" id="selectedFile">
@@ -306,7 +302,7 @@
                 </div>
             </div>
             
-            <button type="submit" class="upload-button" id="uploadButton">Upload Document</button>
+            <button type="submit" class="upload-button" id="uploadButton" disabled>Upload Document</button>
         </form>
         
         <div class="progress-container" id="progressContainer">
@@ -383,9 +379,7 @@
             const formData = new FormData();
             formData.append('file', selectedFileObj);
             const dt = document.getElementById('docType').value.trim();
-            const jur = document.getElementById('jurisdiction').value.trim();
             if (dt) formData.append('doc_type', dt);
-            if (jur) formData.append('jurisdiction', jur);
 
             const xhr = new XMLHttpRequest();
             xhr.open('POST', '/api/upload', true);
@@ -419,8 +413,7 @@
                     const sha = responseJson.sha256 ? `SHA256: ${responseJson.sha256}` : '';
                     const title = responseJson.title ? `Title: ${responseJson.title}` : '';
                     const dtEcho = responseJson.doc_type ? `Type: ${responseJson.doc_type}` : '';
-                    const jurEcho = responseJson.jurisdiction ? `Jurisdiction: ${responseJson.jurisdiction}` : '';
-                    const msgParts = ['Document uploaded successfully.', docId, title, dtEcho, jurEcho].filter(Boolean);
+                    const msgParts = ['Document uploaded successfully.', docId, title, dtEcho].filter(Boolean);
                     showResult(msgParts.join(' — '), 'success');
                     // Keep note about indexing in case embeddings are generated async
                     const indexingNote = document.createElement('div');
@@ -429,7 +422,10 @@
                     indexingNote.style.color = '#ccc';
                     indexingNote.textContent = 'Embeddings/indexing may continue in the background.';
                     uploadResult.appendChild(indexingNote);
+                    // Clear the file selection and reset form after successful upload
                     clearFileSelection();
+                    document.getElementById('docType').value = '';
+                    uploadButton.disabled = true; // Keep disabled until next file is selected
                 } else {
                     // Try to show server error message
                     const errMsg = responseJson && responseJson.error ? responseJson.error : xhr.statusText || 'Upload failed';
@@ -468,9 +464,13 @@
             fileInput.value = '';
             selectedFile.classList.remove('visible');
             uploadButton.classList.remove('visible');
+            uploadButton.disabled = true; // Ensure button is disabled when no file is selected
         }
 
         function handleFile(file) {
+            // Clear any previous upload result message when selecting a new file
+            uploadResult.style.display = 'none';
+            
             // Validate file type by MIME or extension fallback
             const allowedTypes = [
                 'application/pdf',
@@ -498,6 +498,7 @@
             fileSize.textContent = formatFileSize(file.size);
             selectedFile.classList.add('visible');
             uploadButton.classList.add('visible');
+            uploadButton.disabled = false; // Enable the button when a file is selected
             uploadResult.style.display = 'none';
         }
 

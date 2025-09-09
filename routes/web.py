@@ -10,7 +10,7 @@ def index():
 def upload():
     return render_template('upload.html')
 
-@web_bp.route('/manifest-status')
+@web_bp.route('/manifest')
 def manifest_status():
     return render_template('manifest.html')
 
