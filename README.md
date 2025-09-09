@@ -8,7 +8,7 @@ emoji: 📑
 colorFrom: blue
 colorTo: indigo
 sdk: docker
-sdk_version: "0.0.1"
+sdk_version: 0.0.1
 app_file: app.py
 pinned: false
 ---
