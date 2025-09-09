@@ -86,7 +86,6 @@ def _init_chroma_client():
         # Common writable locations on HF Spaces
         candidates.extend([
             "/data/chroma_db",
-            "/data/chdata",
             "/home/user/chroma_db",
             "/data/db_chroma",
         ])
@@ -116,22 +115,6 @@ def _init_chroma_client():
         if not _dir_writeable(abs_path):
             _logger.error(f"Directory not writable: {abs_path}")
             continue
-
-        # Keep env var in sync for downstream components that might read it
-        os.environ["PERSIST_DIRECTORY"] = abs_path
-
-        # Attempt to (re)chmod existing sqlite/duckdb files if present but not writable
-        try:
-            for fname in os.listdir(abs_path):
-                if any(fname.endswith(ext) for ext in (".sqlite3", ".db", ".duckdb")):
-                    fpath = os.path.join(abs_path, fname)
-                    if not os.access(fpath, os.W_OK):
-                        try:
-                            os.chmod(fpath, 0o666)
-                        except Exception:
-                            pass
-        except Exception:
-            pass
 
         try:
             client = chromadb.PersistentClient(path=abs_path)

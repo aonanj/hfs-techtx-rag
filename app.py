@@ -17,13 +17,11 @@ def create_app():
         "PERSIST_DIRECTORY": "/data/chroma_db",
         "XDG_CACHE_HOME": "/data/cache",
         "HF_HOME": "/data/.huggingface",
-        "SENTENCE_TRANSFORMERS_HOME": "/data/cache/sentence-transformers",
         "HOME": "/data",
     }.items():
         os.environ.setdefault(k, v)
         abs_path = os.path.abspath(v)
         os.makedirs(abs_path, exist_ok=True)
-        os.chmod(abs_path, 0o666)  # Ensure read/write permissions
 
     app.register_blueprint(web_bp)
     app.register_blueprint(api_bp)
