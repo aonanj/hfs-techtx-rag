@@ -251,7 +251,7 @@ def list_all_chunks():
     
     # Get embedding counts for all chunks
     chunk_ids = [c.chunk_id for c in rows]
-    embedding_counts = get_embedding_counts_for_chunks(chunk_ids, chunks_collection=rows)
+    embedding_counts = get_embedding_counts_for_chunks(chunk_ids)
     
     out = []
     for c in rows:
@@ -702,7 +702,7 @@ def dbviewer_chunks():
     
     # Get embedding counts for all chunks
     chunk_ids = [c.chunk_id for c in rows]
-    embedding_counts = get_embedding_counts_for_chunks(chunk_ids, chunks_collection=rows)
+    embedding_counts = get_embedding_counts_for_chunks(chunk_ids)
     
     # Check if there are more chunks
     next_chunks = get_all_chunks(limit=1, offset=offset + limit)

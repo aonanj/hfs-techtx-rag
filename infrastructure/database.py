@@ -5,7 +5,7 @@ import os
 import contextlib
 from datetime import datetime, timezone
 from dataclasses import dataclass, field, fields
-from typing import List, Optional, Dict, Any, Sequence
+from typing import List, Optional, Dict, Any
 import numpy as np
 from infrastructure.logger import get_logger
 
@@ -625,47 +625,53 @@ def get_embedding_for_chunk(chunk_id: int):
     return Embedding(id=chunk_id, chunk_id=chunk_id, model=model, dim=dim, vector=float_vector)
 
 
-def get_embedding_counts_for_chunks(chunk_ids: Sequence[int], chunks_collection) -> Dict[int, int]:
+def get_embedding_counts_for_chunks(chunk_ids: list[int]) -> dict[int, int]:
     """
-    Return {chunk_id: 0|1} indicating whether each chunk has an embedding.
-    Avoids ambiguous truth checks with NumPy arrays.
+    Get embedding counts for a list of chunk IDs.
+
+    Returns a dictionary mapping chunk_id to the number of embeddings (0 or 1)
+    since each chunk can have at most one embedding in the current schema.
     """
     if not chunk_ids:
         return {}
 
-    str_ids = [str(c) for c in chunk_ids]
-    data: Dict[str, Any] = chunks_collection.get(ids=str_ids, include=["ids", "embeddings"])
+    str_chunk_ids = [str(chunk_id) for chunk_id in chunk_ids]
+    chunk_data = _chunks_collection.get(ids=str_chunk_ids, include=["embeddings"])
 
-    # Do not use "or []" on arrays. Check None explicitly.
-    ids = data.get("ids")
-    embs = data.get("embeddings")
+    # Explicitly guard against None and arrays, avoid `or []`
+    ids = chunk_data.get("ids")
+    embs = chunk_data.get("embeddings")
     if ids is None:
         ids = []
     if embs is None:
         embs = []
 
-    counts: Dict[int, int] = {cid: 0 for cid in chunk_ids}
+    # Initialize counts to 0
+    embedding_counts: dict[int, int] = {cid: 0 for cid in chunk_ids}
 
-    for i, cid_str in enumerate(ids):
+    for i, chunk_id_str in enumerate(ids):
         try:
-            cid = int(cid_str)
+            cid = int(chunk_id_str)
         except Exception:
             continue
 
-        emb = embs[i] if i < len(embs) else None
-        has_vector = False
-        if emb is not None:
-            # Works for list, tuple, NumPy array, Chroma vector types.
+        embedding = embs[i] if i < len(embs) else None
+        if embedding is None:
+            continue
+
+        # Check non-emptiness safely
+        non_empty = True
+        if hasattr(embedding, "__len__"):
             try:
-                has_vector = len(emb) > 0
+                non_empty = len(embedding) > 0
             except Exception:
-                # If object is non-sized but present, treat as present.
-                has_vector = True
+                non_empty = True  # if len() fails, assume present
 
-        if has_vector:
-            counts[cid] = 1
+        if non_empty:
+            embedding_counts[cid] = 1
 
-    return counts
+    return embedding_counts
+
 
 
 def delete_document(doc_id: int):
