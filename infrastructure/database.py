@@ -446,7 +446,8 @@ def add_document(*, sha256, title=None, source_path=None, doc_type=None, jurisdi
                 raise
         else:
             raise
-    return Document(doc_id=new_doc_id, **metadata)
+    # Normalize return via from_chroma to ensure datetime fields are parsed
+    return Document.from_chroma(new_doc_id, dict(metadata))
 
 def add_chunk(doc_id: int, chunk_id: int, text: str, chunk_index: int, token_count: int | None = None,
               page_start: int | None = None, page_end: int | None = None, section_number: str | None = None,
@@ -471,8 +472,10 @@ def add_chunk(doc_id: int, chunk_id: int, text: str, chunk_index: int, token_cou
 
     _chunks_collection.add(ids=[str(chunk_id)], documents=[text], metadatas=[metadata])
     _logger.info("DB added chunk %s for doc_id=%s", chunk_id, doc_id)
-    
-    return Chunk(chunk_id=chunk_id, doc_id=doc_id, text=text, chunk_index=chunk_index, **metadata)
+
+    # Avoid passing duplicate values for parameters already provided explicitly
+    safe_meta = {k: v for k, v in metadata.items() if k not in {"doc_id", "chunk_index"}}
+    return Chunk(chunk_id=chunk_id, doc_id=doc_id, text=text, chunk_index=chunk_index, **safe_meta)
 
 def upsert_embedding(chunk_id: int, model: str, dim: int, vector_bytes: bytes):
     vector = np.frombuffer(vector_bytes, dtype=np.float32).tolist()
