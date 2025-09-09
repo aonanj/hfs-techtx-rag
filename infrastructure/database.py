@@ -603,11 +603,19 @@ def get_max_chunk_id():
 
 def get_embedding_for_chunk(chunk_id: int):
     chunk_data = _chunks_collection.get(ids=[str(chunk_id)], include=["embeddings", "metadatas"])
-    if not chunk_data['ids'] or not chunk_data['embeddings'] or not chunk_data['embeddings'][0] or not chunk_data['metadatas']:
+    # Avoid ambiguous truth checks on arrays; pull into locals and guard before indexing
+    ids = chunk_data.get('ids') or []
+    embeddings = chunk_data.get('embeddings') or []
+    metadatas = chunk_data.get('metadatas') or []
+
+    if not ids or not embeddings or not metadatas:
         return None
-    
-    vector = chunk_data['embeddings'][0]
-    meta = chunk_data['metadatas'][0]
+
+    vector = embeddings[0]
+    meta = metadatas[0]
+    # Guard for None or empty vectors (including numpy arrays)
+    if vector is None or (hasattr(vector, '__len__') and len(vector) == 0):
+        return None
     model = str(meta.get('embedding_model', 'unknown'))
     dim_val = meta.get('embedding_dim')
     dim = int(dim_val) if dim_val is not None else (len(vector) if vector else 0)
@@ -642,13 +650,23 @@ def get_embedding_counts_for_chunks(chunk_ids: List[int]) -> dict[int, int]:
         embedding_counts[chunk_id] = 0
     
     # Check which chunks have embeddings
-    if chunk_data['ids'] and chunk_data['embeddings'] is not None:
-        for i, chunk_id_str in enumerate(chunk_data['ids']):
+    # Ensure we don't rely on truthiness of arrays; use guarded locals
+    ids = chunk_data.get('ids') or []
+    embs = chunk_data.get('embeddings') or []
+    if ids:
+        for i, chunk_id_str in enumerate(ids):
             chunk_id = int(chunk_id_str)
-            embedding = chunk_data['embeddings'][i]
-            # Check if embedding exists and is not empty
-            if embedding and len(embedding) > 0:
-                embedding_counts[chunk_id] = 1
+            embedding = embs[i] if i < len(embs) else None
+            # Check if embedding exists and is not empty (supports numpy arrays)
+            if embedding is not None:
+                non_empty = True
+                if hasattr(embedding, '__len__'):
+                    try:
+                        non_empty = len(embedding) > 0
+                    except Exception:
+                        non_empty = True  # if len fails, treat as present
+                if non_empty:
+                    embedding_counts[chunk_id] = 1
     
     return embedding_counts
 
@@ -688,6 +706,8 @@ def update_chunk(chunk_id: int, updates: Dict[str, Any]) -> Optional[Chunk]:
         "page_end",
         "path",
         "numbers_present",
+        "prev_id",
+        "next_id",
     }
     try:
         existing = _chunks_collection.get(ids=[str(chunk_id)])
@@ -704,7 +724,7 @@ def update_chunk(chunk_id: int, updates: Dict[str, Any]) -> Optional[Chunk]:
                 if k == "text":
                     # Text update should trigger embedding regeneration
                     documents = str(v) if v is not None else ''
-                elif k in ["page_start", "page_end"]:
+                elif k in ["page_start", "page_end", "prev_id", "next_id"]:
                     # Ensure integers for page fields
                     meta[k] = int(v) if v is not None and str(v).isdigit() else None
                 elif k == "numbers_present":

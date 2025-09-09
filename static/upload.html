@@ -38,8 +38,18 @@
             color: #fff;
             font-size: 2.5rem;
             font-weight: 500;
+            text-decoration: underline;
             text-shadow: 0 4px 8px rgba(0, 0, 0, 0.5);
-            margin: 0;
+            text-align: center;
+            margin: 10px;
+        }
+
+        .header-subtitle {
+            color: #ccc;
+            font-size: 0.85rem;
+            font-weight: 400;
+            font-style: italic;
+            margin: 5px;
         }
 
         .upload-container {
@@ -271,6 +281,7 @@
 <body>
     <div class="header-section">
         <h1 class="header-title">Technology Transactions Assistant</h1>
+        <p class="header-subtitle">IMPORTANT: Documents uploaded to this platform are publically accessible. Do NOT upload any confidential information. This includes PDF documents with redacted sections. This service uses a frontier-level AI model for plain text conversion, and redacted content can be inadvertently extracted. Plain text files are recommended for this reason.</p>
     </div>
     
     <div class="upload-container">
@@ -421,7 +432,7 @@
                     const sha = responseJson.sha256 ? `SHA256: ${responseJson.sha256}` : '';
                     const title = responseJson.title ? `Title: ${responseJson.title}` : '';
                     const dtEcho = responseJson.doc_type ? `Type: ${responseJson.doc_type}` : '';
-                    const msgParts = ['Document uploaded successfully.', docId, title, dtEcho].filter(Boolean);
+                    const msgParts = ['Document uploaded successfully.', title].filter(Boolean);
                     showResult(msgParts.join(' — '), 'success');
                     // Keep note about indexing in case embeddings are generated async
                     const indexingNote = document.createElement('div');

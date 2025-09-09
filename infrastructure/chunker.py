@@ -366,6 +366,12 @@ def chunk_doc(text: str, doc_id: int, max_chars: int = 1200, overlap: int = 150,
 
 		chunk_id = start_chunk_id + idx
 
+		prev_idx = None
+		next_idx = None
+		if idx > 0: 
+			prev_idx = idx - 1
+		if idx < len(chunk_specs) - 1:
+			next_idx = idx + 1
 		new_chunk = add_chunk(
 			doc_id=doc_id,
 			chunk_id=chunk_id,
@@ -397,17 +403,11 @@ def chunk_doc(text: str, doc_id: int, max_chars: int = 1200, overlap: int = 150,
 			'definition_terms': definition_terms,
 			'text': chunk_text,
 			'metadata': None,
-			'prev_id': None,  # fill later
-			'next_id': None,  # fill later
+			'prev_id': prev_idx,  # fill later
+			'next_id': next_idx,  # fill later
 		})
 		logger.info("Chunk metadata record: %s", chunk_metadata_records[-1])
 
-	# Link prev/next
-	for i, rec in enumerate(chunk_metadata_records):
-		if i > 0:
-			rec['prev_id'] = chunk_metadata_records[i-1]['id']
-		if i < len(chunk_metadata_records) - 1:
-			rec['next_id'] = chunk_metadata_records[i+1]['id']
 
 	records = json.dumps(chunk_metadata_records, ensure_ascii=False, indent=0)
 	path = os.path.join(CHUNKS_DIR, "chunks.jsonl")
