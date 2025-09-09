@@ -33,7 +33,7 @@
     .view-toggles button.active { background:#7ec8ff; color:#001122; }
         .meta-grid { display:grid; grid-template-columns:repeat(auto-fit,minmax(200px,1fr)); gap:14px; }
         .kv { background:#222; border:2px solid #555; border-radius:12px; padding:12px 14px; display:flex; flex-direction:column; gap:4px; }
-        .kv span.k { font-size:.65rem; text-transform:uppercase; letter-spacing:1px; color:#999; }
+        .kv span.k { font-size:.65rem; letter-spacing:1px; color:#999; }
         .kv span.v { font-size:.85rem; word-break:break-word; }
     .records { background:#222; border:2px solid #555; border-radius:16px; padding:20px; display:flex; flex-direction:column; gap:20px; max-height:50vh; overflow:auto; }
     .table-wrapper { background:#222; border:2px solid #555; border-radius:16px; padding:14px 18px; max-height:55vh; overflow:auto; }
@@ -46,7 +46,7 @@
         .record { background:#1b2733; border:1px solid #3d4c55; border-radius:12px; padding:16px 18px; display:flex; flex-direction:column; gap:10px; position:relative; }
         .record h3 { margin:0; font-size:.95rem; font-weight:600; }
         .badge-row { display:flex; flex-wrap:wrap; gap:6px; }
-        .badge { background:#2d3f4d; color:#cfe9ff; font-size:.6rem; padding:4px 8px; border-radius:100px; letter-spacing:.5px; text-transform:uppercase; }
+        .badge { background:#2d3f4d; color:#cfe9ff; font-size:.6rem; padding:4px 8px; border-radius:100px; letter-spacing:.5px;}
         .json-view { font-family:Consolas,Monaco,monospace; font-size:.7rem; background:#111a22; border:1px solid #2c3a44; border-radius:8px; padding:10px 12px; white-space:pre; overflow:auto; max-height:240px; }
         .empty { text-align:center; font-style:italic; color:#ccc; }
         .error { color:#ff7b7b; font-weight:600; }
@@ -85,8 +85,10 @@
                     <label for="filter">Text Filter</label>
                     <input type="text" id="filter" placeholder="Type to filter rows" />
                 </div>
-                <div style="display:flex; gap:8px;">
+                <div style="display:flex; gap:4px;">
                     <button type="button" id="refreshBtn">Refresh</button>
+                </div>
+                <div style="display:flex; gap:4px;">
                     <button type="button" class="secondary" id="clearBtn">Clear</button>
                 </div>
             </form>
@@ -107,6 +109,11 @@
                     <span>| Rows: <span id="visibleCount">0</span> / <span id="totalCount">0</span></span>
                 </div>
         </div>
+    </div>
+    <div style="text-align: center; margin-top: 20px;">
+        <a href="/" style="color: #87CEFA; text-decoration: none; font-size: 1rem; padding: 10px 20px; border: 1px solid #87CEFA; border-radius: 10px; transition: all 0.3s ease;" onmouseover="this.style.textDecoration='underline'" onmouseout="this.style.textDecoration='none'">
+            ← Back to Home
+        </a>
     </div>
 
     <script>

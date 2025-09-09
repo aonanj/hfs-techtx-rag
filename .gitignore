@@ -5,3 +5,6 @@ __pycache__
 .env
 __pycache__/
 tech-trans-rag/
+chroma_db/
+test_data.py
+data/

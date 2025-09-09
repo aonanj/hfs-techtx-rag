@@ -1,0 +1,403 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width,initial-scale=1.0" />
+    <title>Database Viewer</title>
+    <style>
+        * { margin:0; padding:0; box-sizing:border-box; }
+        body {
+            font-family:-apple-system,BlinkMacSystemFont,'SF Pro Rounded','SF Pro Display',Roboto,Oxygen,Ubuntu,Cantarell,sans-serif;
+            background:#001122; color:#fff; min-height:100vh; padding:28px; display:flex; flex-direction:column; gap:28px; align-items:center;
+        }
+        .shell { width:100%; max-width:1200px; display:flex; flex-direction:column; gap:26px; }
+        .panel { background:#333; border-radius:20px; padding:28px 32px; box-shadow:0 18px 50px rgba(0,0,0,.5); }
+        h1 { font-size:2.2rem; font-weight:500; text-shadow:0 4px 8px rgba(0,0,0,.5); margin:0 0 8px; }
+        p.sub { font-size:.8rem; color:#ccc; font-style:italic; line-height:1.5; }
+        a { color:#87CEFA; text-decoration:none; }
+        a:hover { text-decoration:underline; }
+        .status { font-size:.75rem; color:#ccc; margin-top:6px; min-height:18px; }
+        .view-toggles { display:flex; gap:10px; flex-wrap:wrap; margin-bottom:20px; }
+        .view-toggles button { background:#2d3f4d; color:#cfe9ff; box-shadow:none; padding:12px 20px; font-size:.8rem; border:none; border-radius:10px; cursor:pointer; transition:.25s; font-weight:600; }
+        .view-toggles button.active { background:#7ec8ff; color:#001122; }
+        .view-toggles button:hover { background:#355064; }
+        .view-toggles button.active:hover { background:#6bb8ff; }
+        .table-wrapper { background:#222; border:2px solid #555; border-radius:16px; padding:14px 18px; max-height:60vh; overflow:auto; }
+        table.data-table { width:100%; border-collapse:collapse; font-size:.7rem; }
+        table.data-table th, table.data-table td { padding:8px 10px; text-align:left; border:1px solid #444; vertical-align:top; }
+        table.data-table th { position:sticky; top:0; background:#2d3f4d; z-index:2; font-weight:600; letter-spacing:.5px; }
+        table.data-table tbody tr:nth-child(even){ background:#1e2a33; }
+        .truncate { max-width:150px; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; cursor:pointer; }
+        .truncate:hover { background:#203240; }
+        .empty { text-align:center; font-style:italic; color:#ccc; padding:40px; }
+        .error { color:#ff7b7b; font-weight:600; }
+        .spinner { width:18px; height:18px; border:3px solid rgba(255,255,255,.2); border-top-color:#7ec8ff; border-radius:50%; animation:spin 1s linear infinite; }
+        .inline { display:inline-flex; align-items:center; gap:10px; }
+        @keyframes spin { to { transform:rotate(360deg);} }
+        .pagination { display:flex; gap:8px; align-items:center; flex-wrap:wrap; margin-top:16px; font-size:.7rem; }
+        .pagination button { padding:8px 12px; font-size:.7rem; background:#2d3f4d; color:#cfe9ff; box-shadow:none; border:none; border-radius:8px; cursor:pointer; transition:.25s; }
+        .pagination button:disabled { opacity:.35; cursor:not-allowed; }
+        .pagination button:hover:not(:disabled) { background:#355064; }
+        .pagination .current { color:#7ec8ff; font-weight:600; }
+        @media (max-width:800px){ .panel { padding:22px 20px; } h1 { font-size:1.7rem; } }
+        
+        /* Modal styles for full content view */
+        .modal { display:none; position:fixed; z-index:1000; left:0; top:0; width:100%; height:100%; background:rgba(0,0,0,.8); }
+        .modal-content { background:#333; margin:5% auto; padding:20px; border-radius:15px; width:90%; max-width:800px; max-height:80vh; overflow:auto; }
+        .modal-header { display:flex; justify-content:space-between; align-items:center; margin-bottom:15px; }
+        .modal-title { font-size:1.2rem; color:#7ec8ff; }
+        .close { color:#ccc; font-size:28px; font-weight:bold; cursor:pointer; }
+        .close:hover { color:#fff; }
+        .modal-body { background:#222; border:1px solid #555; border-radius:8px; padding:15px; font-family:monospace; font-size:.8rem; white-space:pre-wrap; }
+        
+        .tab-content { display:none; }
+        .tab-content.active { display:block; }
+        .tab-header { display:flex; justify-content:space-between; align-items:center; margin-bottom:15px; gap:10px; flex-wrap:wrap; }
+        .tab-info { font-size:.65rem; letter-spacing:1px; color:#ccc; }
+    </style>
+</head>
+<body>
+    <div class="shell">
+        <div class="panel">
+            <h1>Database Viewer</h1>
+            <p class="sub">Browse documents and chunks stored in the ChromaDB database. Values longer than 100 characters are truncated - click to view the complete content.</p>
+            
+            <div class="view-toggles">
+                <button id="documentsTab" class="active" data-tab="documents">Documents</button>
+                <button id="chunksTab" data-tab="chunks">Chunks</button>
+            </div>
+            
+            <div class="status" id="status"></div>
+        </div>
+
+        <!-- Documents Tab -->
+        <div class="panel tab-content active" id="documentsContent">
+            <div class="tab-header">
+                <h2 style="font-size:1.2rem;margin:0;">Documents Table</h2>
+                <div class="tab-info">
+                    Page <span id="documentsPage">1</span> | 
+                    <span id="documentsCount">0</span> records
+                </div>
+            </div>
+            <div class="table-wrapper" id="documentsTableWrapper">
+                <div class="empty">Loading documents...</div>
+            </div>
+            <div class="pagination" id="documentsPagination" style="display:none;"></div>
+        </div>
+
+        <!-- Chunks Tab -->
+        <div class="panel tab-content" id="chunksContent">
+            <div class="tab-header">
+                <h2 style="font-size:1.2rem;margin:0;">Chunks Table</h2>
+                <div class="tab-info">
+                    Page <span id="chunksPage">1</span> | 
+                    <span id="chunksCount">0</span> records
+                </div>
+            </div>
+            <div class="table-wrapper" id="chunksTableWrapper">
+                <div class="empty">Loading chunks...</div>
+            </div>
+            <div class="pagination" id="chunksPagination" style="display:none;"></div>
+        </div>
+    </div>
+
+    <!-- Modal for full content display -->
+    <div id="contentModal" class="modal">
+        <div class="modal-content">
+            <div class="modal-header">
+                <span class="modal-title" id="modalTitle">Content</span>
+                <span class="close">&times;</span>
+            </div>
+            <div class="modal-body" id="modalBody"></div>
+        </div>
+    </div>
+
+    <div style="text-align: center; margin-top: 20px;">
+        <a href="/" style="color: #87CEFA; text-decoration: none; font-size: 1rem; padding: 10px 20px; border: 1px solid #87CEFA; border-radius: 10px; transition: all 0.3s ease;" onmouseover="this.style.textDecoration='underline'" onmouseout="this.style.textDecoration='none'">
+            ← Back to Home
+        </a>
+    </div>
+
+    <script>
+        // Global state
+        let currentTab = 'documents';
+        let documentsPage = 1;
+        let chunksPage = 1;
+        const PAGE_SIZE = 25;
+
+        // Elements
+        const statusEl = document.getElementById('status');
+        const modal = document.getElementById('contentModal');
+        const modalTitle = document.getElementById('modalTitle');
+        const modalBody = document.getElementById('modalBody');
+        const closeModal = document.querySelector('.close');
+
+        // Tab elements
+        const documentsTab = document.getElementById('documentsTab');
+        const chunksTab = document.getElementById('chunksTab');
+        const documentsContent = document.getElementById('documentsContent');
+        const chunksContent = document.getElementById('chunksContent');
+
+        // Table elements
+        const documentsTableWrapper = document.getElementById('documentsTableWrapper');
+        const chunksTableWrapper = document.getElementById('chunksTableWrapper');
+        const documentsPagination = document.getElementById('documentsPagination');
+        const chunksPagination = document.getElementById('chunksPagination');
+
+        // Status elements
+        const documentsPageEl = document.getElementById('documentsPage');
+        const documentsCountEl = document.getElementById('documentsCount');
+        const chunksPageEl = document.getElementById('chunksPage');
+        const chunksCountEl = document.getElementById('chunksCount');
+
+        function esc(v) {
+            return String(v ?? '').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');
+        }
+
+        function setStatus(msg, isError = false) {
+            statusEl.innerHTML = msg ? `<span class="${isError ? 'error' : ''}">${esc(msg)}</span>` : '';
+        }
+
+        function spinner() {
+            setStatus(`<span class='inline'><span class='spinner'></span> Loading...</span>`);
+        }
+
+        function truncateValue(value, maxLength = 100) {
+            const str = String(value ?? '');
+            if (str.length <= maxLength) {
+                return { display: str, truncated: false, full: str };
+            }
+            return {
+                display: str.slice(0, maxLength) + '…',
+                truncated: true,
+                full: str
+            };
+        }
+
+        function showModal(title, content) {
+            modalTitle.textContent = title;
+            modalBody.textContent = content;
+            modal.style.display = 'block';
+        }
+
+        function hideModal() {
+            modal.style.display = 'none';
+        }
+
+        // Modal event listeners
+        closeModal.addEventListener('click', hideModal);
+        window.addEventListener('click', (e) => {
+            if (e.target === modal) {
+                hideModal();
+            }
+        });
+
+        // Tab switching
+        function switchTab(tabName) {
+            currentTab = tabName;
+            
+            // Update tab buttons
+            document.querySelectorAll('.view-toggles button').forEach(btn => {
+                btn.classList.remove('active');
+            });
+            document.getElementById(tabName + 'Tab').classList.add('active');
+            
+            // Update tab content
+            document.querySelectorAll('.tab-content').forEach(content => {
+                content.classList.remove('active');
+            });
+            document.getElementById(tabName + 'Content').classList.add('active');
+            
+            // Load data if needed
+            if (tabName === 'documents') {
+                loadDocuments();
+            } else if (tabName === 'chunks') {
+                loadChunks();
+            }
+        }
+
+        documentsTab.addEventListener('click', () => switchTab('documents'));
+        chunksTab.addEventListener('click', () => switchTab('chunks'));
+
+        function renderDocumentsTable(data) {
+            const { documents, page, count } = data;
+            
+            documentsPageEl.textContent = page;
+            documentsCountEl.textContent = count;
+            
+            if (!documents || documents.length === 0) {
+                documentsTableWrapper.innerHTML = '<div class="empty">No documents found.</div>';
+                documentsPagination.style.display = 'none';
+                return;
+            }
+
+            const columns = [
+                'doc_id', 'title', 'source_path', 'doc_type', 'jurisdiction', 
+                'governing_law', 'party_roles', 'industry', 'effective_date', 
+                'created_at', 'chunk_count', 'sha256'
+            ];
+
+            let html = '<table class="data-table"><thead><tr>';
+            html += columns.map(col => `<th>${esc(col)}</th>`).join('');
+            html += '</tr></thead><tbody>';
+
+            documents.forEach(doc => {
+                html += '<tr>';
+                columns.forEach(col => {
+                    const value = doc[col];
+                    const { display, truncated, full } = truncateValue(value);
+                    const cls = truncated ? 'truncate' : '';
+                    const onClick = truncated ? `onclick="showModal('${esc(col)}', ${JSON.stringify(full).replace(/"/g, '&quot;')})"` : '';
+                    
+                    if (col === 'source_path' && value) {
+                        // Make source path clickable
+                        const rawPrefix = '/data/corpus_raw/';
+                        let rel = '';
+                        if (value.startsWith(rawPrefix)) {
+                            rel = value.substring(rawPrefix.length);
+                        } else {
+                            try {
+                                const parts = value.split('/');
+                                rel = parts.slice(parts.indexOf('corpus_raw') + 1).join('/');
+                            } catch {
+                                rel = value.split('/').pop() || '';
+                            }
+                        }
+                        const href = '/api/raw/' + encodeURI(rel);
+                        html += `<td class="${cls}"><a href="${href}" target="_blank" rel="noopener noreferrer">${esc(display)}</a></td>`;
+                    } else {
+                        html += `<td class="${cls}" ${onClick}>${esc(display)}</td>`;
+                    }
+                });
+                html += '</tr>';
+            });
+
+            html += '</tbody></table>';
+            documentsTableWrapper.innerHTML = html;
+
+            // Render pagination
+            renderPagination('documents', data);
+        }
+
+        function renderChunksTable(data) {
+            const { chunks, page, count } = data;
+            
+            chunksPageEl.textContent = page;
+            chunksCountEl.textContent = count;
+            
+            if (!chunks || chunks.length === 0) {
+                chunksTableWrapper.innerHTML = '<div class="empty">No chunks found.</div>';
+                chunksPagination.style.display = 'none';
+                return;
+            }
+
+            const columns = [
+                'chunk_id', 'doc_id', 'chunk_index', 'text', 'token_count', 
+                'page_start', 'page_end', 'section_number', 'section_title', 
+                'clause_type', 'path', 'numbers_present', 'definition_terms',
+                'tok_ver', 'seg_ver', 'embedding_count'
+            ];
+
+            let html = '<table class="data-table"><thead><tr>';
+            html += columns.map(col => `<th>${esc(col)}</th>`).join('');
+            html += '</tr></thead><tbody>';
+
+            chunks.forEach(chunk => {
+                html += '<tr>';
+                columns.forEach(col => {
+                    const value = chunk[col];
+                    const { display, truncated, full } = truncateValue(value);
+                    const cls = truncated ? 'truncate' : '';
+                    const onClick = truncated ? `onclick="showModal('${esc(col)}', ${JSON.stringify(full).replace(/"/g, '&quot;')})"` : '';
+                    html += `<td class="${cls}" ${onClick}>${esc(display)}</td>`;
+                });
+                html += '</tr>';
+            });
+
+            html += '</tbody></table>';
+            chunksTableWrapper.innerHTML = html;
+
+            // Render pagination
+            renderPagination('chunks', data);
+        }
+
+        function renderPagination(type, data) {
+            const { page, has_more } = data;
+            const paginationEl = type === 'documents' ? documentsPagination : chunksPagination;
+            
+            let html = '';
+            
+            // Previous button
+            if (page > 1) {
+                html += `<button onclick="changePage('${type}', ${page - 1})">← Previous</button>`;
+            } else {
+                html += `<button disabled>← Previous</button>`;
+            }
+            
+            // Current page
+            html += `<span class="current">Page ${page}</span>`;
+            
+            // Next button
+            if (has_more) {
+                html += `<button onclick="changePage('${type}', ${page + 1})">Next →</button>`;
+            } else {
+                html += `<button disabled>Next →</button>`;
+            }
+            
+            paginationEl.innerHTML = html;
+            paginationEl.style.display = 'flex';
+        }
+
+        function changePage(type, page) {
+            if (type === 'documents') {
+                documentsPage = page;
+                loadDocuments();
+            } else if (type === 'chunks') {
+                chunksPage = page;
+                loadChunks();
+            }
+        }
+
+        function loadDocuments() {
+            spinner();
+            fetch(`/api/dbviewer/documents?page=${documentsPage}&limit=${PAGE_SIZE}`)
+                .then(response => response.json())
+                .then(data => {
+                    if (data.error) {
+                        setStatus(`Error loading documents: ${data.error}`, true);
+                        documentsTableWrapper.innerHTML = '<div class="empty">Error loading documents.</div>';
+                        return;
+                    }
+                    renderDocumentsTable(data);
+                    setStatus(data.count ? `Loaded ${data.count} documents.` : 'No documents found.');
+                })
+                .catch(error => {
+                    setStatus(`Failed to load documents: ${error.message}`, true);
+                    documentsTableWrapper.innerHTML = '<div class="empty">Failed to load documents.</div>';
+                });
+        }
+
+        function loadChunks() {
+            spinner();
+            fetch(`/api/dbviewer/chunks?page=${chunksPage}&limit=${PAGE_SIZE}`)
+                .then(response => response.json())
+                .then(data => {
+                    if (data.error) {
+                        setStatus(`Error loading chunks: ${data.error}`, true);
+                        chunksTableWrapper.innerHTML = '<div class="empty">Error loading chunks.</div>';
+                        return;
+                    }
+                    renderChunksTable(data);
+                    setStatus(data.count ? `Loaded ${data.count} chunks.` : 'No chunks found.');
+                })
+                .catch(error => {
+                    setStatus(`Failed to load chunks: ${error.message}`, true);
+                    chunksTableWrapper.innerHTML = '<div class="empty">Failed to load chunks.</div>';
+                });
+        }
+
+        // Initialize
+        loadDocuments();
+    </script>
+</body>
+</html>

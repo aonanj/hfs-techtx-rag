@@ -14,10 +14,10 @@ def upload():
 def manifest_status():
     return render_template('manifest.html')
 
-@web_bp.route('/chunk-status')
+@web_bp.route('/chunks')
 def chunk_status():
     return render_template('chunks.html')
 
-@web_bp.route('/db-status')
-def db_status():
-    return render_template('dbtables.html')
+@web_bp.route('/db-viewer')
+def db_viewer():
+    return render_template('dbviewer.html')

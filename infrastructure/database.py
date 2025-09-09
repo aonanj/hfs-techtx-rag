@@ -581,7 +581,7 @@ def get_document_chunk_counts(doc_ids: list[int]) -> dict[int, int]:
 def get_max_document_id():
     all_ids = _documents_collection.get(include=[])['ids']
     if not all_ids:
-        return -1
+        return 0
     return max([int(i) for i in all_ids])
 
 def get_all_chunks(limit: int = 200, offset: int = 0):
@@ -616,6 +616,42 @@ def get_embedding_for_chunk(chunk_id: int):
 
     return Embedding(id=chunk_id, chunk_id=chunk_id, model=model, dim=dim, vector=float_vector)
 
+
+def get_embedding_counts_for_chunks(chunk_ids: List[int]) -> dict[int, int]:
+    """Get embedding counts for a list of chunk IDs.
+    
+    Returns a dictionary mapping chunk_id to the number of embeddings (0 or 1)
+    since each chunk can have at most one embedding in the current schema.
+    
+    Args:
+        chunk_ids: List of chunk IDs to check for embeddings.
+        
+    Returns:
+        Dictionary mapping chunk_id to embedding count (0 or 1).
+    """
+    if not chunk_ids:
+        return {}
+    
+    str_chunk_ids = [str(chunk_id) for chunk_id in chunk_ids]
+    chunk_data = _chunks_collection.get(ids=str_chunk_ids, include=["embeddings"])
+    
+    embedding_counts = {}
+    
+    # Initialize all counts to 0
+    for chunk_id in chunk_ids:
+        embedding_counts[chunk_id] = 0
+    
+    # Check which chunks have embeddings
+    if chunk_data['ids'] and chunk_data['embeddings']:
+        for i, chunk_id_str in enumerate(chunk_data['ids']):
+            chunk_id = int(chunk_id_str)
+            embedding = chunk_data['embeddings'][i]
+            # Check if embedding exists and is not empty
+            if embedding and len(embedding) > 0:
+                embedding_counts[chunk_id] = 1
+    
+    return embedding_counts
+
 def delete_document(doc_id: int):
     chunks_to_delete = _chunks_collection.get(where={"doc_id": doc_id})
     if chunks_to_delete['ids']:
@@ -635,6 +671,61 @@ def delete_document(doc_id: int):
         _chunks_collection.delete(ids=chunk_ids)
     
     _documents_collection.delete(ids=[str(doc_id)])
+
+def update_chunk(chunk_id: int, updates: Dict[str, Any]) -> Optional[Chunk]:
+    """Update metadata fields for a chunk.
+
+    Only known metadata keys are updated. Returns the updated Chunk or None if not found.
+    If the text field is updated, the associated embedding should be regenerated.
+    """
+    allowed = {
+        "text",
+        "section_number", 
+        "section_title",
+        "clause_type",
+        "definition_terms",
+        "page_start",
+        "page_end",
+        "path",
+        "numbers_present",
+    }
+    try:
+        existing = _chunks_collection.get(ids=[str(chunk_id)])
+        if not existing['ids'] or not existing['metadatas']:
+            return None
+        
+        meta = dict(existing['metadatas'][0])
+        documents_list = existing.get('documents')
+        documents = documents_list[0] if documents_list and len(documents_list) > 0 else ''
+        
+        # Update metadata with allowed fields
+        for k, v in updates.items():
+            if k in allowed:
+                if k == "text":
+                    # Text update should trigger embedding regeneration
+                    documents = str(v) if v is not None else ''
+                elif k in ["page_start", "page_end"]:
+                    # Ensure integers for page fields
+                    meta[k] = int(v) if v is not None and str(v).isdigit() else None
+                elif k == "numbers_present":
+                    # Ensure boolean
+                    meta[k] = bool(v) if v is not None else None
+                else:
+                    meta[k] = str(v) if v is not None else None
+        
+        # Update in ChromaDB
+        _chunks_collection.update(
+            ids=[str(chunk_id)], 
+            metadatas=[meta],
+            documents=[documents] if documents else None
+        )
+        
+        # Return updated chunk
+        return Chunk.from_chroma(chunk_id, meta, documents)
+        
+    except Exception as e:  # pragma: no cover - defensive
+        _logger.error(f"Failed to update chunk {chunk_id}: {e}")
+        return None
 
 def update_document(doc_id: int, updates: Dict[str, Any]) -> Optional[Document]:
     """Update metadata fields for a document.
@@ -691,7 +782,7 @@ __all__ = [
     "add_document", "add_chunk", "upsert_embedding",
     "get_document", "get_document_by_sha", "get_chunks_for_doc", "get_chunks_by_ids",
     "get_documents", "get_document_chunk_counts", "get_all_chunks", "get_max_chunk_id",
-    "get_embedding_for_chunk", "delete_document", "clear_database", "update_document",
+    "get_embedding_for_chunk", "get_embedding_counts_for_chunks", "delete_document", "clear_database", "update_document", "update_chunk",
     "TOK_VER", "SEG_VER", "ping",
     "Document", "Chunk", "Embedding",
 ]

@@ -23,29 +23,17 @@
         button.secondary{background:rgba(255,102,102,.45);color:#fff;box-shadow:none}
         button.secondary:hover{background:rgba(255,102,102,.6)}
         .status{font-size:.75rem;color:#ccc;min-height:18px}
-    .results{display:flex;flex-direction:column;gap:22px}
-    .view-toggles{display:flex;gap:10px;flex-wrap:wrap}
-    .view-toggles button{background:#2d3f4d;color:#cfe9ff;box-shadow:none;padding:8px 14px;font-size:.65rem}
-    .view-toggles button.active{background:#7ec8ff;color:#001122}
+        .results{display:flex;flex-direction:column;gap:22px}
         .summary{display:grid;grid-template-columns:repeat(auto-fit,minmax(180px,1fr));gap:14px}
         .kv{background:#222;border:2px solid #555;border-radius:12px;padding:10px 12px;display:flex;flex-direction:column;gap:4px}
         .kv span.k{font-size:.6rem;text-transform:uppercase;letter-spacing:1px;color:#999}
         .kv span.v{font-size:.8rem;word-break:break-word}
-    .chunks{display:flex;flex-direction:column;gap:14px;max-height:60vh;overflow:auto}
-    .table-wrapper{background:#222;border:2px solid #555;border-radius:16px;padding:14px 18px;max-height:60vh;overflow:auto}
-    table.data-table{width:100%;border-collapse:collapse;font-size:.65rem}
-    table.data-table th,table.data-table td{padding:6px 8px;text-align:left;border:1px solid #444;vertical-align:top}
-    table.data-table th{position:sticky;top:0;background:#2d3f4d;z-index:2;font-weight:600;letter-spacing:.5px}
-    table.data-table tbody tr:nth-child(even){background:#1e2a33}
-    .truncate{max-width:420px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
-        .chunk{background:#1b2733;border:1px solid #3d4c55;border-radius:14px;padding:16px 18px;display:flex;flex-direction:column;gap:10px;position:relative}
-        .chunk h3{margin:0;font-size:.85rem;font-weight:600}
-        .meta-row{display:flex;flex-wrap:wrap;gap:6px;font-size:.55rem;letter-spacing:.5px}
-        .tag{background:#2d3f4d;color:#cfe9ff;font-size:.55rem;padding:4px 8px;border-radius:100px;text-transform:uppercase}
-        .text{font-family:Consolas,Monaco,monospace;font-size:.7rem;line-height:1.35;white-space:pre-wrap;word-break:break-word;max-height:220px;overflow:hidden;position:relative}
-        .text.expanded{max-height:none}
-        .expand-btn{position:absolute;bottom:0;right:0;background:linear-gradient(90deg,rgba(0,0,0,0),#1b2733 60%);padding:4px 8px;font-size:.55rem;border:none;color:#87CEFA;cursor:pointer}
-        .expand-btn:hover{text-decoration:underline}
+        .table-wrapper{background:#222;border:2px solid #555;border-radius:16px;padding:14px 18px;max-height:60vh;overflow:auto}
+        table.data-table{width:100%;border-collapse:collapse;font-size:.65rem}
+        table.data-table th,table.data-table td{padding:6px 8px;text-align:left;border:1px solid #444;vertical-align:top}
+        table.data-table th{position:sticky;top:0;background:#2d3f4d;z-index:2;font-weight:600;letter-spacing:.5px}
+        table.data-table tbody tr:nth-child(even){background:#1e2a33}
+        .truncate{max-width:350px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
         .toolbar{display:flex;flex-wrap:wrap;gap:10px}
         .toolbar input{background:#222;border:2px solid #555;border-radius:10px;padding:8px 10px;color:#fff;font-size:.75rem;min-width:220px}
         .toolbar input:focus{outline:none;border-color:#7ec8ff;box-shadow:0 0 0 3px rgba(126,200,255,.15)}
@@ -55,20 +43,32 @@
         .spinner{width:18px;height:18px;border:3px solid rgba(255,255,255,.2);border-top-color:#7ec8ff;border-radius:50%;animation:spin 1s linear infinite}
         @keyframes spin{to{transform:rotate(360deg)}}
         @media (max-width:900px){.panel{padding:22px 20px}h1{font-size:1.7rem}}
+        
+        /* Edit mode styles */
+        tr.editing { background:#283745 !important; }
+        td.editable { cursor:text; }
+        td.editable:hover { background:#203240; }
+        .row-actions { display:flex; gap:6px; }
+        .row-actions button { padding:4px 10px; font-size:.6rem; background:#355064; color:#cfe9ff; }
+        .row-actions button.confirm { background:#4caf50; color:#fff; }
+        .row-actions button.cancel { background:#d9534f; color:#fff; }
+        th.sortable { cursor:pointer; user-select:none; }
+        th.sortable:hover { background:#355064; }
+        th.sortable .indicator { font-size:.55rem; margin-left:4px; opacity:.8; }
     </style>
 </head>
 <body>
     <div class="shell">
         <div class="panel">
             <h1>Chunks Explorer</h1>
-            <p class="sub">Default view lists a paginated slice of all chunks (<code>/api/chunks/all</code>). Enter or select a document ID to view only that document's chunks via <code>/api/chunks?doc_id=&lt;id&gt;</code>.</p>
+            <p class="sub">Paginated table view of chunks data with inline editing capabilities. Shows key fields from chunks database including metadata.</p>
             <form id="queryForm" class="query" autocomplete="off">
                 <div>
                     <label for="docId">Document ID</label>
-                    <input type="number" id="docId" min="1" placeholder="e.g., 12" required />
+                    <input type="number" id="docId" min="1" placeholder="e.g., 12" />
                 </div>
                 <div>
-                    <label for="filter">Text Filter (client)</label>
+                    <label for="filter">Text Filter</label>
                     <input type="text" id="filter" placeholder="filter text..." />
                 </div>
                 <div>
@@ -76,28 +76,27 @@
                     <input type="number" id="pageSize" min="5" max="200" value="25" />
                 </div>
                 <div style="display:flex;gap:8px;">
-                    <button type="submit" id="fetchBtn">Fetch</button>
-                    <button type="button" class="secondary" id="clearBtn">Clear</button>
+                    <button type="submit" id="fetchBtn">Fetch by Doc ID</button>
                 </div>
             </form>
             <div class="toolbar">
-                <input type="text" id="sectionFilter" placeholder="filter by section (contains)" />
-                <input type="text" id="indexFilter" placeholder="filter by chunk index (exact)" />
+                <input type="text" id="sectionFilter" placeholder="filter by section title" />
+                <input type="text" id="clauseFilter" placeholder="filter by clause type" />
+                <div style="display:flex;gap:8px;">
+                    <button type="button" class="secondary" id="clearBtn">Clear</button>
+                </div>
             </div>
             <div class="status" id="status"></div>
         </div>
 
-        <div class="panel results" id="resultsPanel" style="display:block;">
+        <div class="panel results" id="resultsPanel">
             <div style="display:flex;gap:10px;flex-wrap:wrap;align-items:center;margin-bottom:6px;">
-                <div class="view-toggles">
-                    <button type="button" id="cardsMode" class="active">Cards</button>
-                    <button type="button" id="tableMode">Table</button>
-                </div>
+                <h2 style="font-size:1.2rem;margin:0;">Chunks Data</h2>
                 <button type="button" id="globalMode" class="secondary" style="margin-left:auto;">Show All Chunks</button>
+                <div style="font-size:.65rem;letter-spacing:1px;color:#ccc;">Total: <span id="rowCount">0</span></div>
             </div>
             <div class="summary" id="summary"></div>
-            <div class="chunks" id="chunks" style="display:block;"></div>
-            <div class="table-wrapper" id="tableWrapper" style="display:none;"></div>
+            <div class="table-wrapper" id="tableWrapper"></div>
             <div class="pagination" id="pagination"></div>
         </div>
     </div>
@@ -107,195 +106,391 @@
         const docIdInput = document.getElementById('docId');
         const filterInput = document.getElementById('filter');
         const sectionFilter = document.getElementById('sectionFilter');
-        const indexFilter = document.getElementById('indexFilter');
+        const clauseFilter = document.getElementById('clauseFilter');
         const pageSizeInput = document.getElementById('pageSize');
         const statusEl = document.getElementById('status');
         const summaryEl = document.getElementById('summary');
-    const chunksEl = document.getElementById('chunks');
-    const tableWrapper = document.getElementById('tableWrapper');
-    const cardsModeBtn = document.getElementById('cardsMode');
-    const tableModeBtn = document.getElementById('tableMode');
+        const tableWrapper = document.getElementById('tableWrapper');
         const paginationEl = document.getElementById('pagination');
         const clearBtn = document.getElementById('clearBtn');
-    const resultsPanel = document.getElementById('resultsPanel');
-    const globalModeBtn = document.getElementById('globalMode');
+        const resultsPanel = document.getElementById('resultsPanel');
+        const globalModeBtn = document.getElementById('globalMode');
+        const rowCountEl = document.getElementById('rowCount');
 
         let rawChunks = [];
         let currentPage = 1;
+        let sortCol = 'chunk_id';
+        let sortDir = 'asc';
+        let editing = { rowChunkId: null, col: null };
 
-        function esc(v){return String(v??'').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');}
-        function setStatus(msg,isErr=false){statusEl.innerHTML = msg?`<span style="${isErr?'color:#ff7b7b;font-weight:600;':''}">${esc(msg)}</span>`:'';}
-        function spinner(){setStatus(`<span style='display:inline-flex;align-items:center;gap:8px;'><span class="spinner"></span> Loading...</span>`);}
+        const PAGE_SIZE = 25;
 
-    function fetchChunks(docId){
-            spinner();
-            fetch(`/api/chunks?doc_id=${encodeURIComponent(docId)}`)
-                .then(r=>r.json())
-                .then(data=>{
-                    if(data.error){ setStatus(data.error,true); resultsPanel.style.display='none'; return; }
-                    rawChunks = Array.isArray(data.chunks)?data.chunks:[];
-                    setStatus(rawChunks.length?`Loaded ${rawChunks.length} chunk(s).`:'No chunks.');
-                    buildSummary(data);
-                    currentPage=1;
-                    render();
-                    resultsPanel.style.display='block';
-                })
-                .catch(err=>{ setStatus('Failed to load chunks: '+err.message,true); resultsPanel.style.display='none'; });
+        function esc(v) {
+            return String(v ?? '').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');
         }
 
-        function buildSummary(apiData){
-            summaryEl.innerHTML='';
-            if(!rawChunks.length) return;
-            const last = rawChunks[rawChunks.length-1];
+        function setStatus(msg, isErr=false) {
+            statusEl.innerHTML = msg ? `<span style="${isErr ? 'color:#ff7b7b;font-weight:600;' : ''}">${esc(msg)}</span>` : '';
+        }
+
+        function spinner() {
+            setStatus(`<span style='display:inline-flex;align-items:center;gap:8px;'><span class="spinner"></span> Loading...</span>`);
+        }
+
+        function fetchChunks(docId) {
+            spinner();
+            fetch(`/api/chunks?doc_id=${encodeURIComponent(docId)}`)
+                .then(r => r.json())
+                .then(data => {
+                    if (data.error) {
+                        setStatus(data.error, true);
+                        resultsPanel.style.display = 'none';
+                        return;
+                    }
+                    rawChunks = Array.isArray(data.chunks) ? data.chunks : [];
+                    setStatus(rawChunks.length ? `Loaded ${rawChunks.length} chunk(s).` : 'No chunks.');
+                    buildSummary(data);
+                    currentPage = 1;
+                    render();
+                    resultsPanel.style.display = 'block';
+                })
+                .catch(err => {
+                    setStatus('Failed to load chunks: ' + err.message, true);
+                    resultsPanel.style.display = 'none';
+                });
+        }
+
+        function fetchAllChunks() {
+            setStatus('');
+            summaryEl.innerHTML = '';
+            spinner();
+            const limit = Math.max(50, Math.min(500, parseInt(pageSizeInput.value, 10) || 200));
+            fetch(`/api/chunks/all?limit=${limit}`)
+                .then(r => r.json())
+                .then(data => {
+                    rawChunks = Array.isArray(data.chunks) ? data.chunks : [];
+                    setStatus(rawChunks.length ? `Loaded ${rawChunks.length} chunk(s) (global slice).` : 'No chunks.');
+                    currentPage = 1;
+                    render();
+                    resultsPanel.style.display = 'block';
+                })
+                .catch(err => {
+                    setStatus('Failed to load global chunks: ' + err.message, true);
+                });
+        }
+
+        function buildSummary(apiData) {
+            summaryEl.innerHTML = '';
+            if (!rawChunks.length) return;
+            
+            const last = rawChunks[rawChunks.length - 1];
             const meta = {
-                doc_id: apiData.doc_id,
+                doc_id: apiData.doc_id || 'Global',
                 total_chunks: rawChunks.length,
                 first_chunk_id: rawChunks[0]?.chunk_id,
                 last_chunk_id: last?.chunk_id,
                 token_version: last?.tok_ver,
                 segment_version: last?.seg_ver
             };
-            Object.entries(meta).forEach(([k,v])=>{
-                summaryEl.insertAdjacentHTML('beforeend', `<div class="kv"><span class="k">${esc(k)}</span><span class="v">${esc(v)}</span></div>`);
+            
+            Object.entries(meta).forEach(([k, v]) => {
+                summaryEl.insertAdjacentHTML('beforeend', 
+                    `<div class="kv"><span class="k">${esc(k)}</span><span class="v">${esc(v)}</span></div>`);
             });
         }
 
-        function fetchAllChunks(){
-            setStatus('');
-            summaryEl.innerHTML='';
-            spinner();
-            const limit = Math.max(50, Math.min(500, parseInt(pageSizeInput.value,10)||200));
-            fetch(`/api/chunks/all?limit=${limit}`)
-              .then(r=>r.json())
-              .then(data => {
-                  rawChunks = Array.isArray(data.chunks)?data.chunks:[];
-                  setStatus(rawChunks.length?`Loaded ${rawChunks.length} chunk(s) (global slice).`:'No chunks.');
-                  currentPage=1; render();
-              })
-              .catch(err=>{ setStatus('Failed to load global chunks: '+err.message,true); });
-        }
-
-        function applyFilters(list){
+        function applyFilters(list) {
             const t = filterInput.value.trim().toLowerCase();
             const s = sectionFilter.value.trim().toLowerCase();
-            const idx = indexFilter.value.trim();
-            return list.filter(c=>{
-                if(t && !JSON.stringify(c).toLowerCase().includes(t)) return false;
-                if(s && !(c.section||'').toLowerCase().includes(s)) return false;
-                if(idx && String(c.chunk_index) !== idx) return false;
+            const c = clauseFilter.value.trim().toLowerCase();
+            
+            return list.filter(chunk => {
+                if (t && !JSON.stringify(chunk).toLowerCase().includes(t)) return false;
+                if (s && !(chunk.section_title || '').toLowerCase().includes(s)) return false;
+                if (c && !(chunk.clause_type || '').toLowerCase().includes(c)) return false;
                 return true;
             });
         }
 
-        function paginate(list,page,pageSize){
-            const start=(page-1)*pageSize; return list.slice(start,start+pageSize);
-        }
-
-        function render(){
-            const filtered = applyFilters(rawChunks);
-            const pageSize = Math.max(5, Math.min(200, parseInt(pageSizeInput.value,10)||25));
-            const pageCount = Math.max(1, Math.ceil(filtered.length / pageSize));
-            if(currentPage>pageCount) currentPage=pageCount;
-            const pageItems = paginate(filtered,currentPage,pageSize);
-
-            if(!filtered.length){ chunksEl.innerHTML='<div class="empty">No chunks match filters.</div>'; paginationEl.innerHTML=''; return; }
-
-            if(cardsModeBtn.classList.contains('active')){
-                chunksEl.innerHTML = pageItems.map(ch => renderChunk(ch)).join('');
-                tableWrapper.innerHTML='';
-                attachExpandHandlers();
-            } else {
-                renderTable(filtered,pageSize,pageCount);
+        function compareValues(a, b) {
+            const an = parseFloat(a); 
+            const bn = parseFloat(b);
+            const aNum = !isNaN(an) && String(an) === String(a).trim();
+            const bNum = !isNaN(bn) && String(bn) === String(b).trim();
+            
+            if (aNum && bNum) {
+                if (an < bn) return -1;
+                if (an > bn) return 1;
+                return 0;
             }
-            buildPagination(pageCount);
+            
+            const as = String(a).toLowerCase();
+            const bs = String(b).toLowerCase();
+            if (as < bs) return -1;
+            if (as > bs) return 1;
+            return 0;
         }
 
-        function renderTable(filtered,pageSize,pageCount){
-            const pageSizeVal = Math.max(5, Math.min(200, parseInt(pageSizeInput.value,10)||25));
-            const start=(currentPage-1)*pageSizeVal;
-            const subset=filtered.slice(start,start+pageSizeVal);
-            if(!subset.length){ tableWrapper.innerHTML='<div class="empty">No chunks match filters.</div>'; return; }
-            const columns=["chunk_id","chunk_index","token_count","tok_ver","seg_ver","text"];
-            let html='<table class="data-table"><thead><tr>'+columns.map(c=>`<th>${esc(c)}</th>`).join('')+'</tr></thead><tbody>';
-            html+= subset.map(r=>'<tr data-chunk="'+esc(r.chunk_id)+'">'+columns.map(c=>{
-                let val=r[c]; if(val==null) val=''; let display=String(val);
-                if(c==='text'){
-                    const full=display; const trunc=full.length>240?full.slice(0,240)+'…':full;
-                    return `<td data-text="1" data-full="${esc(full)}" data-trunc="${esc(trunc)}" data-expanded="0" class="${trunc!==full?'truncate':''}" title="Click row to toggle full text">${esc(trunc)}</td>`;
-                }
-                if(display.length>120) display=display.slice(0,120)+'…';
-                return `<td class="${display!==String(val)?'truncate':''}" title="${esc(String(val))}">${esc(display)}</td>`;
-            }).join('')+'</tr>').join('');
-            html+='</tbody></table>';
-            tableWrapper.innerHTML=html;
-            attachExpandHandlers();
+        function sortRows(rows) {
+            if (!sortCol) return rows;
+            return [...rows].sort((r1, r2) => {
+                const v1 = r1[sortCol] ?? '';
+                const v2 = r2[sortCol] ?? '';
+                const cmp = compareValues(v1, v2);
+                return sortDir === 'asc' ? cmp : -cmp;
+            });
         }
 
-        function renderChunk(ch){
-            const full = ch.text||'';
-            const truncated = full.length>800? full.slice(0,800)+'…' : full;
-            const metaTags = [];
-            metaTags.push(`<span class='tag'>Idx ${esc(ch.chunk_index)}</span>`);
-            if(ch.token_count!=null) metaTags.push(`<span class='tag'>Tok ${esc(ch.token_count)}</span>`);
-            if(ch.section) metaTags.push(`<span class='tag'>Sec</span>`);
-            return `<div class='chunk' data-chunk='${esc(ch.chunk_id)}' data-expanded='0'>
-                <h3>Chunk ${esc(ch.chunk_id)}</h3>
-                <div class='meta-row'>${metaTags.join('')}</div>
-                <div class='text' data-full='${esc(full)}' data-trunc='${esc(truncated)}'>${esc(truncated)}</div>
-            </div>`;
+        function setSort(col) {
+            if (sortCol === col) {
+                sortDir = sortDir === 'asc' ? 'desc' : 'asc';
+            } else {
+                sortCol = col;
+                sortDir = 'asc';
+            }
+            currentPage = 1;
+            render();
         }
 
-        function attachExpandHandlers(){
-            // Card mode
-            chunksEl.querySelectorAll('.chunk').forEach(div=>{
-                div.addEventListener('click',()=>{
-                    const textDiv = div.querySelector('.text');
-                    if(!textDiv) return;
-                    const expanded = textDiv.classList.toggle('expanded');
-                    if(expanded){
-                        textDiv.textContent = textDiv.getAttribute('data-full');
-                        div.dataset.expanded='1';
-                    } else {
-                        textDiv.textContent = textDiv.getAttribute('data-trunc');
-                        div.dataset.expanded='0';
+        function buildHeader(cols) {
+            return cols.map(c => {
+                const active = c === sortCol;
+                const indicator = active ? (sortDir === 'asc' ? '▲' : '▼') : '';
+                return `<th class="sortable" data-col="${esc(c)}">${esc(c)}<span class="indicator">${indicator}</span></th>`;
+            }).join('');
+        }
+
+        function paginate(rows) {
+            const pageSize = parseInt(pageSizeInput.value, 10) || PAGE_SIZE;
+            const pageCount = Math.max(1, Math.ceil(rows.length / pageSize));
+            if (currentPage > pageCount) currentPage = pageCount;
+            
+            const start = (currentPage - 1) * pageSize;
+            const slice = rows.slice(start, start + pageSize);
+            
+            updatePagination(currentPage, pageCount, slice.length, rows.length);
+            return slice;
+        }
+
+        function updatePagination(current, total, visible, totalRows) {
+            paginationEl.innerHTML = `
+                <button id="firstPage" ${current === 1 ? 'disabled' : ''} title="First">⏮</button>
+                <button id="prevPage" ${current === 1 ? 'disabled' : ''} title="Previous">◀</button>
+                <span>Page ${current} / ${total}</span>
+                <button id="nextPage" ${current === total ? 'disabled' : ''} title="Next">▶</button>
+                <button id="lastPage" ${current === total ? 'disabled' : ''} title="Last">⏭</button>
+                <span>| Rows: ${visible} / ${totalRows}</span>
+            `;
+            
+            // Attach pagination event handlers
+            const firstBtn = document.getElementById('firstPage');
+            const prevBtn = document.getElementById('prevPage');
+            const nextBtn = document.getElementById('nextPage');
+            const lastBtn = document.getElementById('lastPage');
+            
+            firstBtn?.addEventListener('click', () => { currentPage = 1; render(); });
+            prevBtn?.addEventListener('click', () => { if (currentPage > 1) { currentPage--; render(); } });
+            nextBtn?.addEventListener('click', () => { currentPage++; render(); });
+            lastBtn?.addEventListener('click', () => { currentPage = total; render(); });
+            
+            paginationEl.style.display = totalRows ? 'flex' : 'none';
+        }
+
+        function render() {
+            const filtered = applyFilters(rawChunks);
+            const rows = sortRows(filtered);
+            rowCountEl.textContent = rows.length;
+            
+            if (!rows.length) {
+                tableWrapper.innerHTML = '<div class="empty">No chunks match filters.</div>';
+                paginationEl.style.display = 'none';
+                return;
+            }
+            
+            const pageRows = paginate(rows);
+            renderTable(pageRows);
+        }
+
+        function renderTable(pageRows) {
+            const cols = ["chunk_id", "doc_id", "text", "section_number", "section_title", "clause_type", "definition_terms", "embedding_count"];
+            
+            let html = '<table class="data-table"><thead><tr>' + buildHeader(cols) + '</tr></thead><tbody>';
+            
+            html += pageRows.map(r => {
+                const rid = esc(r.chunk_id);
+                let tds = cols.map(c => {
+                    let val = r[c];
+                    if (val == null) val = '';
+                    let full = String(val);
+                    let display = full;
+                    
+                    const nonEditable = (c === 'chunk_id' || c === 'doc_id' || c === 'embedding_count');
+                    
+                    if (c === 'text') {
+                        // Truncate text to 350 characters unless editing
+                        if (editing.rowChunkId === String(r.chunk_id) && editing.col === c) {
+                            display = full; // Show full text when editing
+                        } else {
+                            display = full.length > 350 ? full.slice(0, 350) + '…' : full;
+                        }
+                    } else if (display.length > 160) {
+                        display = display.slice(0, 160) + '…';
                     }
+                    
+                    const cls = [
+                        display !== full ? 'truncate' : '', 
+                        nonEditable ? '' : 'editable'
+                    ].filter(Boolean).join(' ');
+                    
+                    let content = esc(display);
+                    
+                    if (editing.rowChunkId === String(r.chunk_id) && editing.col === c && !nonEditable) {
+                        if (c === 'text') {
+                            content = `<textarea style="width:100%;height:80px;background:#16232d;border:1px solid #4a6578;color:#fff;font-size:.65rem;padding:4px 6px;border-radius:4px;resize:vertical;" placeholder="Enter text...">${esc(full)}</textarea>`;
+                        } else {
+                            content = `<input type="text" style="width:100%;background:#16232d;border:1px solid #4a6578;color:#fff;font-size:.65rem;padding:4px 6px;border-radius:4px;" value="${esc(full)}" />`;
+                        }
+                    }
+                    
+                    return `<td data-col="${esc(c)}" data-chunk="${rid}" class="${cls}" title="${esc(full)}">${content}</td>`;
+                }).join('');
+                
+                // Add action buttons if this row is being edited
+                const actionTd = editing.rowChunkId === String(r.chunk_id) ? 
+                    `<td class="row-actions"><button class="confirm">Save</button><button class="cancel">Cancel</button></td>` :
+                    `<td></td>`;
+                
+                const rowClass = editing.rowChunkId === String(r.chunk_id) ? 'editing' : '';
+                return `<tr data-chunk="${rid}" class="${rowClass}">${tds}${actionTd}</tr>`;
+            }).join('');
+            
+            html += '</tbody></table>';
+            tableWrapper.innerHTML = html;
+            
+            // Header sort handlers
+            tableWrapper.querySelectorAll('th.sortable').forEach(th => {
+                th.addEventListener('click', () => {
+                    const col = th.getAttribute('data-col');
+                    if (col) setSort(col);
                 });
             });
-            // Table mode
-            if(tableWrapper.innerHTML){
-                tableWrapper.querySelectorAll('tbody tr').forEach(tr=>{
-                    tr.addEventListener('click',()=>{
-                        const cell = tr.querySelector('td[data-text]');
-                        if(!cell) return;
-                        if(cell.dataset.expanded==='1'){
-                            cell.textContent = cell.dataset.trunc;
-                            cell.dataset.expanded='0';
-                        } else {
-                            cell.textContent = cell.dataset.full;
-                            cell.dataset.expanded='1';
-                        }
-                    });
-                });
+            
+            attachEditHandlers();
+        }
+
+        function attachEditHandlers() {
+            // Cell editing
+            tableWrapper.querySelectorAll('td.editable').forEach(td => {
+                td.addEventListener('click', () => beginCellEdit(td));
+            });
+            
+            // Save/cancel handlers if visible
+            tableWrapper.querySelectorAll('tr').forEach(tr => {
+                const chunkId = tr.getAttribute('data-chunk');
+                if (!chunkId) return;
+                
+                const confirmBtn = tr.querySelector('button.confirm');
+                const cancelBtn = tr.querySelector('button.cancel');
+                
+                if (confirmBtn) confirmBtn.addEventListener('click', () => confirmCellEdit(chunkId));
+                if (cancelBtn) cancelBtn.addEventListener('click', cancelCellEdit);
+            });
+        }
+
+        function beginCellEdit(td) {
+            const tr = td.closest('tr');
+            const chunkId = tr.getAttribute('data-chunk');
+            const col = td.getAttribute('data-col');
+            
+            if (!col || col === 'chunk_id' || col === 'doc_id' || col === 'embedding_count') return;
+            
+            // Only one cell at a time
+            editing = { rowChunkId: String(chunkId), col };
+            render();
+        }
+
+        function cancelCellEdit() {
+            editing = { rowChunkId: null, col: null };
+            render();
+        }
+
+        function confirmCellEdit(chunkId) {
+            const row = tableWrapper.querySelector(`tr[data-chunk="${CSS.escape(chunkId)}"]`);
+            if (!row) return;
+            
+            const cell = row.querySelector(`td[data-col="${CSS.escape(editing.col)}"] input, td[data-col="${CSS.escape(editing.col)}"] textarea`);
+            if (!cell) {
+                cancelCellEdit();
+                return;
             }
+            
+            const newVal = cell.value.trim();
+            const updates = { [editing.col]: newVal };
+            
+            setStatus('Saving…');
+            
+            fetch('/api/chunks', {
+                method: 'PATCH',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ chunk_id: parseInt(chunkId), updates })
+            })
+            .then(r => r.json().then(j => ({ ok: r.ok, data: j })))
+            .then(res => {
+                if (!res.ok) {
+                    setStatus(res.data.error || 'Save failed', true);
+                    return;
+                }
+                
+                // Update local data
+                const chunk = rawChunks.find(c => String(c.chunk_id) === String(chunkId));
+                if (chunk) {
+                    chunk[editing.col] = newVal;
+                }
+                
+                setStatus('Saved.');
+                cancelCellEdit();
+            })
+            .catch(err => setStatus('Save error: ' + err.message, true));
         }
 
-        function buildPagination(pageCount){
-            paginationEl.innerHTML='';
-            if(pageCount<=1) return;
-            const makeBtn=(label,disabled,on)=>{const b=document.createElement('button');b.textContent=label;b.disabled=disabled;b.addEventListener('click',on);return b;};
-            paginationEl.appendChild(makeBtn('Prev',currentPage===1,()=>{currentPage--;render();}));
-            paginationEl.insertAdjacentHTML('beforeend', `<span>Page ${currentPage} / ${pageCount}</span>`);
-            paginationEl.appendChild(makeBtn('Next',currentPage===pageCount,()=>{currentPage++;render();}));
+        // Event listeners
+        form.addEventListener('submit', e => {
+            e.preventDefault();
+            const id = docIdInput.value.trim();
+            if (!id) {
+                setStatus('Document ID required', true);
+                return;
+            }
+            fetchChunks(id);
+        });
+
+        clearBtn.addEventListener('click', () => {
+            docIdInput.value = '';
+            filterInput.value = '';
+            sectionFilter.value = '';
+            clauseFilter.value = '';
+            rawChunks = [];
+            resultsPanel.style.display = 'none';
+            setStatus('');
+        });
+
+        [filterInput, sectionFilter, clauseFilter, pageSizeInput].forEach(inp => 
+            inp.addEventListener('input', () => { currentPage = 1; render(); })
+        );
+
+        globalModeBtn.addEventListener('click', () => {
+            fetchAllChunks();
+        });
+
+        // Initial load
+        const params = new URLSearchParams(window.location.search);
+        const qsId = params.get('doc_id');
+        if (qsId) {
+            docIdInput.value = qsId;
+            fetchChunks(qsId);
+        } else {
+            fetchAllChunks();
         }
-
-    form.addEventListener('submit',e=>{e.preventDefault(); const id=docIdInput.value.trim(); if(!id){setStatus('Document ID required',true);return;} fetchChunks(id);});
-        clearBtn.addEventListener('click',()=>{docIdInput.value='';filterInput.value='';sectionFilter.value='';indexFilter.value='';rawChunks=[];resultsPanel.style.display='none';setStatus('');});
-    [filterInput, sectionFilter, indexFilter, pageSizeInput].forEach(inp=>inp.addEventListener('input',()=>{currentPage=1;render();}));
-    cardsModeBtn.addEventListener('click',()=>{ if(cardsModeBtn.classList.contains('active')) return; cardsModeBtn.classList.add('active'); tableModeBtn.classList.remove('active'); chunksEl.style.display='flex'; tableWrapper.style.display='none'; render(); });
-    tableModeBtn.addEventListener('click',()=>{ if(tableModeBtn.classList.contains('active')) return; tableModeBtn.classList.add('active'); cardsModeBtn.classList.remove('active'); chunksEl.style.display='none'; tableWrapper.style.display='block'; render(); });
-    globalModeBtn.addEventListener('click',()=>{fetchAllChunks(); resultsPanel.style.display='block';});
-
-    const params = new URLSearchParams(window.location.search); const qsId = params.get('doc_id'); if(qsId){ docIdInput.value=qsId; fetchChunks(qsId); } else { fetchAllChunks(); }
     </script>
 </body>
 </html>

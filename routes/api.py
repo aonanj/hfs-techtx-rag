@@ -3,7 +3,6 @@ import os
 from flask import Blueprint, request, jsonify, send_from_directory
 from werkzeug.utils import secure_filename
 from infrastructure.logger import get_logger
-from random import randint
 
 from infrastructure.database import (
     init_db,
@@ -13,17 +12,19 @@ from infrastructure.database import (
     get_documents,
     get_document_chunk_counts,
     get_all_chunks,
+    get_embedding_counts_for_chunks,
     full_reset_chroma,
-    get_max_document_id,
     get_chunks_by_ids,
     update_document,
+    update_chunk,
     delete_document,
 )
 from infrastructure.document_processor import (
     extract_text,
     extract_title_type_jurisdiction,
     sha256_text,
-    upsert_manifest_record
+    upsert_manifest_record,
+    get_manifest_info
 )
 from infrastructure.chunker import chunk_doc
 from infrastructure.vector_search import find_nearest_neighbors
@@ -63,6 +64,7 @@ def add_doc():
     title = None
     doc_id_val = None
 
+
     if not doc:
         filename = secure_filename(file.filename)
 
@@ -73,18 +75,25 @@ def add_doc():
             doc_type = doc_info.get("doc_type")
         if "jurisdiction" in doc_info:
             jurisdiction = doc_info.get("jurisdiction")
-        max_doc_id = get_max_document_id()
+        
+        manifest_record = get_manifest_info(clean_text)
+        party_roles = manifest_record.get("party_roles") or None
+        governing_law = manifest_record.get("governing_law") or None
+        effective_date = manifest_record.get("effective_date") or None
+        industry = manifest_record.get("industry") or None
 
-        current_doc_id = max_doc_id + 1 if max_doc_id is not None else 0
+        doc = add_document(sha256=content_sha, title=title, source_path=None, doc_type=doc_type, jurisdiction=jurisdiction, industry=industry, party_roles=party_roles, governing_law=governing_law, effective_date=effective_date)
+        doc_id_val = getattr(doc, "doc_id", 0)
+
         file_format = file.mimetype
         file.stream.seek(0, 2)
         file_size = file.tell()
         file.stream.seek(0)
 
-        raw_filename = f"{str(current_doc_id)}" + "." + filename.rsplit('.', 1)[1].lower()
-
+        raw_filename = f"{str(doc_id_val)}" + "." + filename.rsplit('.', 1)[1].lower()
         raw_path = os.path.join(UPLOAD_FOLDER, raw_filename)
-        txt_filename = f"{str(current_doc_id)}" + '.txt'
+
+        txt_filename = f"{str(doc_id_val)}" + '.txt'
         clean_path = os.path.join(CLEAN_FOLDER, txt_filename)
 
         file.stream.seek(0)
@@ -95,29 +104,26 @@ def add_doc():
             f.write(clean_text)
         logger.info("Saved clean text to %s", clean_path)
 
-        manifest_record = upsert_manifest_record(
+        doc = update_document(doc_id=doc_id_val, updates={"source_path": raw_path})
+
+        manifest_jsonl_line = upsert_manifest_record(
             sha256=content_sha,
             title=title,
             source_path=raw_path,
             clean_path=clean_path,
             doc_type=doc_type or "",
             jurisdiction=jurisdiction or "",
-            doc_id=current_doc_id or randint(100, 999),
+            party_roles=party_roles or "",
+            governing_law=governing_law or "",
+            effective_date=effective_date or "",
+            industry=industry or "",
+            doc_id=doc_id_val,
             text=clean_text,
             size=str(file_size),
             content_type=file_format,
         )
 
-        industry = manifest_record.get("industry") or None
-        party_roles = manifest_record.get("party_roles") or None
-        governing_law = manifest_record.get("governing_law") or None
-        effective_date = manifest_record.get("effective_date") or None
-
-        doc = add_document(sha256=content_sha, title=title, source_path=raw_path, doc_type=doc_type, jurisdiction=jurisdiction, industry=industry, party_roles=party_roles, governing_law=governing_law, effective_date=effective_date)
-        doc_id_val = getattr(doc, "doc_id", 0)
-
         logger.error("INFO: Added document id=%s, sha256=%s, title=%s, doc_type=%s, jurisdiction=%s", doc_id_val, content_sha, title, doc_type, jurisdiction)
-        logger.error(f"INFO: DB doc_id: {doc_id_val}; Manifest doc_id: {current_doc_id} ")
 
     else:
         doc_id_val = getattr(doc, "doc_id", 0)
@@ -129,7 +135,7 @@ def add_doc():
             pass
 
     try:
-        chunks = chunk_doc(text=clean_text, doc_id=int(doc_id_val))
+        chunks = chunk_doc(text=clean_text, doc_id=doc_id_val)
         logger.info("Chunked document into %d chunks", len(chunks))
     except Exception as e:
         logger.exception("Chunking failed: %s", e)
@@ -169,11 +175,14 @@ def get_chunks():
 
 @api_bp.route("/documents", methods=["GET"])
 def list_documents():
-    """List documents with pagination and basic counts.
+    """List documents with pagination and document metadata.
 
     Query params:
-      limit (default 100, max 500)
-      offset (default 0)
+        limit (default 100, max 500)
+        offset (default 0)
+        
+    Returns documents with keys: doc_id, sha_256, title, source_path, created_at,
+    docu_type, jurisdiction, governing_law, party_roles, industry, effective_date, chunks.
     """
     try:
         limit = int(request.args.get("limit", 100))
@@ -182,26 +191,49 @@ def list_documents():
         return jsonify({"error": "invalid pagination"}), 400
     limit = max(1, min(limit, 500))
     offset = max(0, offset)
+    
     docs = get_documents(limit=limit, offset=offset)
+    
+    if not docs:
+        return jsonify({"documents": [], "count": 0, "limit": limit, "offset": offset}), 200
+    
+    # Get chunk counts for all documents
     ids = [int(getattr(d, 'doc_id')) for d in docs]
     counts = get_document_chunk_counts(ids)
+    
     out = []
     for d in docs:
-        out.append({
+        doc_data = {
             "doc_id": int(getattr(d, 'doc_id')),
-            "title": d.title,
             "sha256": d.sha256,
+            "title": d.title,
+            "source_path": d.source_path,
+            "created_at": d.created_at.isoformat() if getattr(d, 'created_at', None) else None,
             "doc_type": getattr(d, "doc_type", None),
             "jurisdiction": getattr(d, "jurisdiction", None),
-            "created_at": d.created_at.isoformat() if getattr(d, 'created_at', None) else None,
+            "governing_law": getattr(d, "governing_law", None),
+            "party_roles": getattr(d, "party_roles", None),
+            "industry": getattr(d, "industry", None),
+            "effective_date": d.effective_date.isoformat() if d.effective_date else None,
             "chunk_count": counts.get(int(getattr(d, 'doc_id')), 0),
-        })
+        }
+        out.append(doc_data)
+    
     return jsonify({"documents": out, "count": len(out), "limit": limit, "offset": offset}), 200
 
 
 @api_bp.route("/chunks/all", methods=["GET"])
 def list_all_chunks():
-    """List global chunks slice (paginated). Query params: limit (<=500), offset."""
+    """List global chunks slice (paginated) with specified fields and embedding counts.
+    
+    Query params: 
+        limit (<=500, default 200)
+        offset (default 0)
+        
+    Returns chunks with keys: chunk_id, doc_id, chunk_index, token_count, tok_ver, 
+    seg_ver, text, page_start, page_end, section_number, section_title, clause_type, 
+    path, numbers_present, definition_terms, embedding_count.
+    """
     try:
         limit = int(request.args.get("limit", 200))
         offset = int(request.args.get("offset", 0))
@@ -209,11 +241,19 @@ def list_all_chunks():
         return jsonify({"error": "invalid pagination"}), 400
     limit = max(1, min(limit, 500))
     offset = max(0, offset)
+    
     rows = get_all_chunks(limit=limit, offset=offset)
+    
+    if not rows:
+        return jsonify({"chunks": [], "count": 0, "limit": limit, "offset": offset}), 200
+    
+    # Get embedding counts for all chunks
+    chunk_ids = [c.chunk_id for c in rows]
+    embedding_counts = get_embedding_counts_for_chunks(chunk_ids)
+    
     out = []
     for c in rows:
-        doc = getattr(c, 'document', None)
-        out.append({
+        chunk_data = {
             "chunk_id": c.chunk_id,
             "doc_id": c.doc_id,
             "chunk_index": c.chunk_index,
@@ -221,11 +261,72 @@ def list_all_chunks():
             "tok_ver": c.tok_ver,
             "seg_ver": c.seg_ver,
             "text": str(getattr(c, 'text', '') or ''),
-            "doc_type": getattr(doc, 'doc_type', None) if doc else None,
-            "jurisdiction": getattr(doc, 'jurisdiction', None) if doc else None,
-            "title": getattr(doc, 'title', None) if doc else None,
-        })
+            "page_start": c.page_start,
+            "page_end": c.page_end,
+            "section_number": c.section_number,
+            "section_title": c.section_title,
+            "clause_type": c.clause_type,
+            "path": c.path,
+            "numbers_present": c.numbers_present,
+            "definition_terms": c.definition_terms,
+            "embedding_count": embedding_counts.get(c.chunk_id, 0),
+        }
+        out.append(chunk_data)
+    
     return jsonify({"chunks": out, "count": len(out), "limit": limit, "offset": offset}), 200
+
+@api_bp.route("/chunks", methods=["PATCH"])
+def update_chunks():
+    """Update a chunk's metadata and optionally regenerate embedding if text changed."""
+    payload = request.get_json(force=True) or {}
+    chunk_id = payload.get("chunk_id")
+    updates = payload.get("updates", {})
+    
+    if not chunk_id:
+        return jsonify({"error": "chunk_id required"}), 400
+    
+    try:
+        chunk_id = int(chunk_id)
+    except (ValueError, TypeError):
+        return jsonify({"error": "invalid chunk_id"}), 400
+    
+    if not updates or not isinstance(updates, dict):
+        return jsonify({"error": "updates dict required"}), 400
+    
+    logger.info("Updating chunk %d with updates: %s", chunk_id, updates)
+    
+    try:
+        updated_chunk = update_chunk(chunk_id, updates)
+        if not updated_chunk:
+            return jsonify({"error": "chunk not found"}), 404
+        
+        # If text was updated, we should regenerate the embedding using ChromaDB
+        if "text" in updates:
+            from infrastructure.embeddings import get_chroma_collection
+            
+            try:
+                new_text = updates["text"]
+                if new_text and new_text.strip():
+                    # Update text and regenerate embedding via ChromaDB
+                    collection = get_chroma_collection()
+                    collection.update(
+                        ids=[str(chunk_id)],
+                        documents=[new_text]
+                    )
+                    logger.info("Regenerated embedding for chunk %d after text update", chunk_id)
+            except Exception as e:
+                logger.error("Failed to regenerate embedding for chunk %d: %s", chunk_id, e)
+                # Don't fail the request, just log the error
+        
+        return jsonify({
+            "message": "chunk updated successfully", 
+            "chunk_id": chunk_id,
+            "updated_fields": list(updates.keys())
+        }), 200
+        
+    except Exception as e:
+        logger.error("Failed to update chunk %d: %s", chunk_id, e)
+        return jsonify({"error": "internal server error"}), 500
 
 @api_bp.route("/query", methods=["POST"])
 def query():
@@ -491,3 +592,152 @@ def serve_raw(subpath: str):
     # To use, ensure source_path links are constructed as /api/raw/<relative to RAW_PREFIX>
     abs_path = os.path.join(RAW_PREFIX, "")
     return send_from_directory(abs_path, subpath, as_attachment=False)
+
+
+@api_bp.route("/dbviewer/documents", methods=["GET"])
+def dbviewer_documents():
+    """List documents for the database viewer with pagination.
+    
+    Query params:
+        page (default 1)
+        limit (default 25, max 100)
+        
+    Returns documents with pagination info.
+    """
+    try:
+        page = int(request.args.get("page", 1))
+        limit = int(request.args.get("limit", 25))
+    except ValueError:
+        return jsonify({"error": "invalid pagination parameters"}), 400
+    
+    page = max(1, page)
+    limit = max(1, min(limit, 100))
+    offset = (page - 1) * limit
+    
+    docs = get_documents(limit=limit, offset=offset)
+    
+    if not docs:
+        return jsonify({
+            "documents": [], 
+            "page": page, 
+            "limit": limit, 
+            "total": 0,
+            "total_pages": 0
+        }), 200
+    
+    # Get chunk counts for all documents
+    ids = [int(getattr(d, 'doc_id')) for d in docs]
+    counts = get_document_chunk_counts(ids)
+    
+    # Get total count for pagination (this is approximate)
+    # We'll fetch one more page to see if there are more documents
+    next_docs = get_documents(limit=1, offset=offset + limit)
+    has_more = len(next_docs) > 0
+    
+    out = []
+    for d in docs:
+        doc_data = {
+            "doc_id": int(getattr(d, 'doc_id')),
+            "sha256": d.sha256,
+            "title": d.title,
+            "source_path": d.source_path,
+            "created_at": d.created_at.isoformat() if getattr(d, 'created_at', None) else None,
+            "doc_type": getattr(d, "doc_type", None),
+            "jurisdiction": getattr(d, "jurisdiction", None),
+            "governing_law": getattr(d, "governing_law", None),
+            "party_roles": getattr(d, "party_roles", None),
+            "industry": getattr(d, "industry", None),
+            "effective_date": d.effective_date.isoformat() if d.effective_date else None,
+            "chunk_count": counts.get(int(getattr(d, 'doc_id')), 0),
+        }
+        out.append(doc_data)
+    
+    # Estimate total for pagination
+    estimated_total = offset + len(out) + (100 if has_more else 0)
+    estimated_pages = max(1, (estimated_total + limit - 1) // limit)
+    
+    return jsonify({
+        "documents": out, 
+        "page": page, 
+        "limit": limit, 
+        "count": len(out),
+        "has_more": has_more,
+        "estimated_total": estimated_total,
+        "estimated_pages": estimated_pages
+    }), 200
+
+
+@api_bp.route("/dbviewer/chunks", methods=["GET"])
+def dbviewer_chunks():
+    """List chunks for the database viewer with pagination.
+    
+    Query params:
+        page (default 1)
+        limit (default 25, max 100)
+        
+    Returns chunks with pagination info.
+    """
+    try:
+        page = int(request.args.get("page", 1))
+        limit = int(request.args.get("limit", 25))
+    except ValueError:
+        return jsonify({"error": "invalid pagination parameters"}), 400
+    
+    page = max(1, page)
+    limit = max(1, min(limit, 100))
+    offset = (page - 1) * limit
+    
+    rows = get_all_chunks(limit=limit, offset=offset)
+    
+    if not rows:
+        return jsonify({
+            "chunks": [], 
+            "page": page, 
+            "limit": limit, 
+            "total": 0,
+            "total_pages": 0
+        }), 200
+    
+    # Get embedding counts for all chunks
+    chunk_ids = [c.chunk_id for c in rows]
+    embedding_counts = get_embedding_counts_for_chunks(chunk_ids)
+    
+    # Check if there are more chunks
+    next_chunks = get_all_chunks(limit=1, offset=offset + limit)
+    has_more = len(next_chunks) > 0
+    
+    out = []
+    for c in rows:
+        chunk_data = {
+            "chunk_id": c.chunk_id,
+            "doc_id": c.doc_id,
+            "chunk_index": c.chunk_index,
+            "token_count": c.token_count,
+            "tok_ver": c.tok_ver,
+            "seg_ver": c.seg_ver,
+            "text": str(getattr(c, 'text', '') or ''),
+            "page_start": c.page_start,
+            "page_end": c.page_end,
+            "section_number": c.section_number,
+            "section_title": c.section_title,
+            "clause_type": c.clause_type,
+            "path": c.path,
+            "numbers_present": c.numbers_present,
+            "definition_terms": c.definition_terms,
+            "embedding_count": embedding_counts.get(c.chunk_id, 0),
+        }
+        out.append(chunk_data)
+    
+    # Estimate total for pagination
+    estimated_total = offset + len(out) + (100 if has_more else 0)
+    estimated_pages = max(1, (estimated_total + limit - 1) // limit)
+    
+    return jsonify({
+        "chunks": out, 
+        "page": page, 
+        "limit": limit, 
+        "count": len(out),
+        "has_more": has_more,
+        "estimated_total": estimated_total,
+        "estimated_pages": estimated_pages
+    }), 200

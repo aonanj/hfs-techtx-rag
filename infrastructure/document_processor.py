@@ -233,10 +233,9 @@ def sha256_text(text: str) -> str:
     """Compute the SHA-256 hash of a text string."""
     return sha256_bytes(text.encode('utf-8'))
 
-def upsert_manifest_record(text: str, size: str, doc_id: int, sha256: str, source_path: str, clean_path: str, content_type: str | None, title: str | None, jurisdiction: str | None, doc_type: str | None) -> Dict[str, Optional[Any]]:
+def upsert_manifest_record(text: str, size: str, doc_id: int, sha256: str, source_path: str, clean_path: str, content_type: str | None, title: str | None, jurisdiction: str | None, doc_type: str | None, party_roles: str | None, governing_law: str | None, effective_date: str | None, industry: str | None) -> Dict[str, Optional[Any]]:
     """Upsert a manifest record in the database."""
     
-    manifest = get_manifest_info(text)
     manifest_record = {
         "doc_id": str(doc_id),
         "title": title,
@@ -245,13 +244,12 @@ def upsert_manifest_record(text: str, size: str, doc_id: int, sha256: str, sourc
         "clean_path": clean_path,
         "bytes": size,
         "content_type": content_type,
-        "license": manifest.get("license"),
         "doc_type": doc_type,
-        "party_roles": manifest.get("party_roles"),
+        "party_roles": party_roles,
         "jurisdiction": jurisdiction,
-        "governing_law": manifest.get("governing_law"),
-        "industry": manifest.get("industry"),
-        "effective_date": manifest.get("effective_date"),
+        "governing_law": governing_law,
+        "industry": industry,
+        "effective_date": effective_date,
         "created_at": datetime.now(timezone.utc).isoformat(),
     }
 
