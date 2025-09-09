@@ -394,6 +394,8 @@ def add_document(*, sha256, title=None, source_path=None, doc_type=None, jurisdi
         party_roles = ", ".join(party_roles)
     if governing_law and isinstance(governing_law, list):
         governing_law = ", ".join(governing_law)
+    if party_roles and isinstance(party_roles, list):
+        party_roles = ", ".join(party_roles)
     if effective_date and isinstance(effective_date, datetime):
         effective_date_str = str(effective_date.isoformat())
     else:

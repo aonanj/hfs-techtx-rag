@@ -431,14 +431,15 @@
             });
             
             attachEditHandlers();
+            focusEditingCell();
         }
 
         function attachEditHandlers() {
-            // Cell editing
+            // Attach direct click handlers to editable cells
             tableWrapper.querySelectorAll('td.editable').forEach(td => {
                 td.addEventListener('click', () => beginCellEdit(td));
             });
-            
+
             // Save/cancel handlers if visible
             tableWrapper.querySelectorAll('tr').forEach(tr => {
                 const chunkId = tr.getAttribute('data-chunk');
@@ -450,6 +451,32 @@
                 if (confirmBtn) confirmBtn.addEventListener('click', () => confirmCellEdit(chunkId));
                 if (cancelBtn) cancelBtn.addEventListener('click', cancelCellEdit);
             });
+        }
+
+        function focusEditingCell() {
+            if (!editing.rowChunkId || !editing.col) return;
+            const row = tableWrapper.querySelector(`tr[data-chunk="${CSS.escape(editing.rowChunkId)}"]`);
+            if (!row) return;
+            const field = row.querySelector(`td[data-col="${CSS.escape(editing.col)}"] input, td[data-col="${CSS.escape(editing.col)}"] textarea`);
+            if (field) {
+                // Focus and place caret at the end
+                field.focus();
+                if (field.setSelectionRange && typeof field.value === 'string') {
+                    const len = field.value.length;
+                    try { field.setSelectionRange(len, len); } catch {}
+                }
+                // Keyboard shortcuts: Enter to save (except Shift+Enter for textarea), Esc to cancel
+                field.addEventListener('keydown', (ev) => {
+                    if (ev.key === 'Escape') { ev.preventDefault(); cancelCellEdit(); }
+                    else if (ev.key === 'Enter') {
+                        const isTextarea = field.tagName.toLowerCase() === 'textarea';
+                        if (!isTextarea || (isTextarea && !ev.shiftKey)) {
+                            ev.preventDefault();
+                            confirmCellEdit(editing.rowChunkId);
+                        }
+                    }
+                }, { once: true });
+            }
         }
 
         function beginCellEdit(td) {
