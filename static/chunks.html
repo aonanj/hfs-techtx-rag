@@ -203,12 +203,12 @@
             setStatus('');
             summaryEl.innerHTML = '';
             spinner();
-            const limit = Math.max(50, Math.min(500, parseInt(pageSizeInput.value, 10) || 200));
+            const limit = 0; // No limit
             fetch(`/api/chunks/all?limit=${limit}`)
                 .then(r => r.json())
                 .then(data => {
                     rawChunks = Array.isArray(data.chunks) ? data.chunks : [];
-                    setStatus(rawChunks.length ? `Loaded ${rawChunks.length} chunk(s) (global slice).` : 'No chunks.');
+                    setStatus(rawChunks.length ? `Loaded ${rawChunks.length} chunk(s) (global).` : 'No chunks.');
                     currentPage = 1;
                     render();
                     resultsPanel.style.display = 'block';

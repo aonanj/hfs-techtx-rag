@@ -5,7 +5,18 @@ Currently provides a single public helper `chunk_doc` that:
 1. Reads a cleaned `.txt` file (already extracted & normalized elsewhere).
 2. Splits it into pages (form-feed ``\f`` boundaries) and paragraphs.
 3. Aggregates paragraphs into size‑bounded chunks with optional character overlap.
-4. Persists each chunk using `infrastructure.database.persist_chunk`.
+4. Persists each chunk using `infrastructure.datab    path = os.path.join(CHUNKS_DIR, "chunks.jsonl")
+
+    try:
+        with open(path, "a", encoding="utf-8") as f:
+            for record in chunk_metadata_records:
+                f.write(json.dumps(record, ensure_ascii=False) + '\n')
+        logger.info(f"Appended {len(chunk_metadata_records)} chunk records to existing chunks file {path}")
+    except FileNotFoundError:
+        with open(path, "w", encoding="utf-8") as f:
+            for record in chunk_metadata_records:
+                f.write(json.dumps(record, ensure_ascii=False) + '\n')
+        logger.info(f"Wrote {len(chunk_metadata_records)} chunk records to new chunks file {path}")_chunk`.
 
 Design notes:
 * Chunk sizing is character based (not tokens) to avoid extra deps.

@@ -30,6 +30,7 @@ from infrastructure.document_processor import (
 )
 from infrastructure.chunker import chunk_doc
 from infrastructure.vector_search import find_nearest_neighbors
+from services.gpt_service import refine_query_response
 
 api_bp = Blueprint("api", __name__, url_prefix="/api")
 CORS(api_bp)
@@ -375,8 +376,10 @@ def query():
                     "distance": distance,
                     "document": doc_info
                 })
-        
-        return jsonify({"results": results}), 200
+
+        answer = refine_query_response(question, results)
+
+        return jsonify({"results": results, "answer": answer}), 200
     except Exception as e:
         logger.exception("Query failed: %s", e)
         return jsonify({"error": "Failed to execute query"}), 500
