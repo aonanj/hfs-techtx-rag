@@ -420,6 +420,8 @@ def chunk_doc(text: str, doc_id: int, max_chars: int = 1200, overlap: int = 150,
 		with open(path, "w", encoding="utf-8") as f:
 			f.write(records)
 		logger.info(f"Created new chunks file with {len(chunk_metadata_records)} records as it did not exist")
+	except Exception as e:
+		logger.error(f"Failed to write chunk records to {path}: {e}")
 
 	chunk_texts = [spec[0] for spec in chunk_specs]
 	# Generate embeddings and upsert to ChromaDB

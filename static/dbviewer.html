@@ -40,10 +40,10 @@
         .view-toggles button.active:hover { background:#6bb8ff; }
         .table-wrapper { background:#222; border:2px solid #555; border-radius:16px; padding:14px 18px; max-height:60vh; overflow:auto; }
         table.data-table { width:100%; border-collapse:collapse; font-size:.7rem; }
-        table.data-table th, table.data-table td { padding:8px 10px; text-align:left; border:1px solid #444; vertical-align:top; }
+    table.data-table th, table.data-table td { padding:8px 10px; text-align:left; border:1px solid #444; vertical-align:top; white-space:normal; word-break:break-word; overflow-wrap:anywhere; }
         table.data-table th { position:sticky; top:0; background:#2d3f4d; z-index:2; font-weight:600; letter-spacing:.5px; }
         table.data-table tbody tr:nth-child(even){ background:#1e2a33; }
-        .truncate { max-width:150px; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; cursor:pointer; }
+    .truncate { white-space:normal; word-break:break-word; overflow-wrap:anywhere; cursor:pointer; }
         .truncate:hover { background:#203240; }
         .empty { text-align:center; font-style:italic; color:#ccc; padding:40px; }
         .error { color:#ff7b7b; font-weight:600; }

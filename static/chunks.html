@@ -44,12 +44,29 @@
         .kv{background:#222;border:2px solid #555;border-radius:12px;padding:10px 12px;display:flex;flex-direction:column;gap:4px}
         .kv span.k{font-size:.6rem;text-transform:uppercase;letter-spacing:1px;color:#999}
         .kv span.v{font-size:.8rem;word-break:break-word}
-        .table-wrapper{background:#222;border:2px solid #555;border-radius:16px;padding:14px 18px;max-height:60vh;overflow:auto}
-        table.data-table{width:100%;border-collapse:collapse;font-size:.65rem}
+    .table-wrapper{background:#222;border:2px solid #555;border-radius:16px;padding:14px 18px;max-height:60vh;overflow:auto;overflow-x:auto}
+    table.data-table{width:auto;min-width:1900px;border-collapse:collapse;font-size:.65rem;table-layout:fixed}
     table.data-table th,table.data-table td{padding:6px 8px;text-align:left;border:1px solid #444;vertical-align:top;white-space:normal;word-break:break-word;overflow-wrap:anywhere}
         table.data-table th{position:sticky;top:0;background:#2d3f4d;z-index:2;font-weight:600;letter-spacing:.5px}
         table.data-table tbody tr:nth-child(even){background:#1e2a33}
     .truncate{max-width:unset;white-space:normal;word-break:break-word;overflow-wrap:anywhere}
+    /* Wider, fixed column widths for better readability and horizontal scrolling */
+    table.data-table th:nth-child(1),
+    table.data-table td:nth-child(1){width:90px}
+    table.data-table th:nth-child(2),
+    table.data-table td:nth-child(2){width:90px}
+    table.data-table th:nth-child(3),
+    table.data-table td:nth-child(3){width:900px} /* text */
+    table.data-table th:nth-child(4),
+    table.data-table td:nth-child(4){width:120px}
+    table.data-table th:nth-child(5),
+    table.data-table td:nth-child(5){width:320px}
+    table.data-table th:nth-child(6),
+    table.data-table td:nth-child(6){width:180px}
+    table.data-table th:nth-child(7),
+    table.data-table td:nth-child(7){width:240px}
+    table.data-table th:nth-child(8),
+    table.data-table td:nth-child(8){width:140px}
         .toolbar{display:flex;flex-wrap:wrap;gap:10px}
         .toolbar input{background:#222;border:2px solid #555;border-radius:10px;padding:8px 10px;color:#fff;font-size:.75rem;min-width:220px}
         .toolbar input:focus{outline:none;border-color:#7ec8ff;box-shadow:0 0 0 3px rgba(126,200,255,.15)}
