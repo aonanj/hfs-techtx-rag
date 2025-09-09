@@ -1,6 +1,7 @@
 # api.py
 import os
 from flask import Blueprint, request, jsonify, send_from_directory
+import json
 from flask_cors import CORS
 from werkzeug.utils import secure_filename
 from infrastructure.logger import get_logger
@@ -42,6 +43,7 @@ UPLOAD_FOLDER = os.getenv("UPLOAD_FOLDER", "/data/corpus_raw")
 CLEAN_FOLDER = os.getenv("CLEAN_FOLDER", "/data/corpus_clean")
 MANIFEST_DIR = os.getenv("MANIFEST_DIR", "/data/manifest")
 RAW_PREFIX = "/data/corpus_raw"
+CHUNKS_DIR = os.getenv("CHUNKS_DIR", "/data/chunks")
 
 def allowed_file(filename: str) -> bool:
     return "." in filename and filename.rsplit(".", 1)[1].lower() in ALLOWED_EXTENSIONS
@@ -284,6 +286,137 @@ def list_all_chunks():
     
     return jsonify({"chunks": out, "count": len(out), "limit": limit, "offset": offset}), 200
 
+
+@api_bp.route("/chunks/jsonl", methods=["GET"])
+def list_chunks_from_jsonl():
+    """Return all chunk records found in /data/chunks/chunks.jsonl for viewing.
+
+    This endpoint parses the JSONL (or JSON-array) file produced by the chunker
+    and normalizes records to the same shape used in the table UI. It also
+    augments with embedding_count using the ChromaDB store when chunk IDs exist.
+    """
+    path = os.path.join(CHUNKS_DIR, "chunks.jsonl")
+    rows: list[dict] = []
+
+    if not os.path.exists(path):
+        return jsonify({"chunks": [], "count": 0}), 200
+
+    try:
+        with open(path, "r", encoding="utf-8") as f:
+            content = f.read()
+    except Exception as e:
+        logger.error("Failed reading %s: %s", path, e)
+        return jsonify({"error": "failed to read chunks.jsonl"}), 500
+
+    content_stripped = (content or "").strip()
+    # Try robust parsing:
+    # 1) Whole-file JSON (array or object)
+    # 2) Streaming JSON decoder to handle concatenated JSON values
+    # 3) Line-by-line JSONL fallback
+    parsed_ok = False
+    if content_stripped:
+        try:
+            parsed = json.loads(content_stripped)
+            if isinstance(parsed, list):
+                rows = [r for r in parsed if isinstance(r, dict)]
+            elif isinstance(parsed, dict):
+                rows = [parsed]
+            parsed_ok = True
+        except Exception:
+            parsed_ok = False
+
+    if not parsed_ok and content_stripped:
+        try:
+            dec = json.JSONDecoder()
+            s = content_stripped
+            idx = 0
+            out: list[dict] = []
+            while idx < len(s):
+                # Skip whitespace between values
+                while idx < len(s) and s[idx].isspace():
+                    idx += 1
+                if idx >= len(s):
+                    break
+                obj, end = dec.raw_decode(s, idx)
+                if isinstance(obj, list):
+                    out.extend([r for r in obj if isinstance(r, dict)])
+                elif isinstance(obj, dict):
+                    out.append(obj)
+                idx = end
+            if out:
+                rows = out
+                parsed_ok = True
+        except Exception:
+            parsed_ok = False
+
+    if not parsed_ok:
+        # Fallback: line-by-line JSONL
+        rows = []
+        for line in (content.splitlines() if content else []):
+            line = line.strip()
+            if not line:
+                continue
+            try:
+                obj = json.loads(line)
+                if isinstance(obj, list):
+                    rows.extend([r for r in obj if isinstance(r, dict)])
+                elif isinstance(obj, dict):
+                    rows.append(obj)
+            except Exception:
+                # tolerate malformed lines
+                continue
+
+    if not rows:
+        return jsonify({"chunks": [], "count": 0}), 200
+
+    # Normalize shape and collect IDs for embedding counts
+    normalized: list[dict] = []
+    chunk_ids: list[int] = []
+    for r in rows:
+        cid = r.get("chunk_id") or r.get("id")
+        try:
+            cid_int = int(cid) if cid is not None else None
+        except Exception:
+            cid_int = None
+        if cid_int is not None:
+            chunk_ids.append(cid_int)
+        normalized.append({
+            "chunk_id": cid_int,
+            "doc_id": r.get("doc_id"),
+            "chunk_index": r.get("chunk_index") or r.get("index"),
+            "token_count": r.get("token_count"),
+            "tok_ver": r.get("tok_ver"),
+            "seg_ver": r.get("seg_ver"),
+            "text": str(r.get("text") or ""),
+            "page_start": r.get("page_start"),
+            "page_end": r.get("page_end"),
+            "section_number": r.get("section_number"),
+            "section_title": r.get("section_title"),
+            "clause_type": r.get("clause_type"),
+            "path": r.get("path"),
+            "numbers_present": r.get("numbers_present"),
+            "definition_terms": r.get("definition_terms"),
+            # embedding_count filled below
+        })
+
+    # Populate embedding counts where possible
+    embedding_counts: dict[int, int] = {}
+    try:
+        if chunk_ids:
+            embedding_counts = get_embedding_counts_for_chunks(chunk_ids)
+    except Exception as e:
+        logger.error("Failed to get embedding counts for JSONL rows: %s", e)
+        embedding_counts = {}
+
+    for item in normalized:
+        cid = item.get("chunk_id")
+        item["embedding_count"] = int(embedding_counts.get(int(cid), 0)) if isinstance(cid, int) else 0
+
+    # Sort by chunk_id asc when available
+    normalized.sort(key=lambda x: (x["chunk_id"] is None, x.get("chunk_id") or 0))
+
+    return jsonify({"chunks": normalized, "count": len(normalized)}), 200
+
 @api_bp.route("/chunks", methods=["PATCH"])
 def update_chunks():
     """Update a chunk's metadata and optionally regenerate embedding if text changed."""
@@ -377,9 +510,9 @@ def query():
                     "document": doc_info
                 })
 
-        answer = refine_query_response(question, results)
+        response = refine_query_response(question, results)
 
-        return jsonify({"results": results, "answer": answer}), 200
+        return jsonify({"results": results, "response": response}), 200
     except Exception as e:
         logger.exception("Query failed: %s", e)
         return jsonify({"error": "Failed to execute query"}), 500

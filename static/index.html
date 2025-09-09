@@ -215,6 +215,46 @@
             margin-bottom: 0; 
         }
 
+        /* New formatting for Response and Results sections */
+        .section-title {
+            font-family: inherit;
+            font-weight: 700;
+            font-size: 1.05rem;
+            text-decoration: underline;
+            margin: 2px 0 8px 0;
+            color: #f7fafc;
+        }
+        .response-block {
+            width: 100%;
+            margin-bottom: 14px;
+        }
+        .response-text {
+            white-space: pre-wrap;
+            line-height: 1.55;
+            color: #e6eef6;
+        }
+        .citations {
+            margin-top: 10px;
+        }
+        .citations ul, .results-section ol {
+            margin-top: 6px;
+            padding-left: 20px;
+        }
+        .citations li {
+            margin-bottom: 4px;
+        }
+        .results-section {
+            width: 100%;
+            border-top: 1px solid #444;
+            margin-top: 8px;
+            padding-top: 8px;
+            font-size: 0.9rem; /* slightly smaller */
+        }
+        .meta-line {
+            color: #cbd5e1;
+            font-size: 0.85rem;
+        }
+
         .output-section.empty {
             align-items: center;
             justify-content: center;
@@ -413,13 +453,48 @@
                 }
 
                 const parts = [];
-                parts.push(`<u>Query:</u> ${escape(data.query)}`);
+
+                // Small meta lines for query and filters
+                parts.push(`<div class="meta-line"><u>Query:</u> ${escape(data.query)}</div>`);
                 if (data.filters && (data.filters.doc_type || data.filters.jurisdiction)) {
-                    parts.push(`<u>Filters:</u> doc_type=${escape(data.filters.doc_type || '—')} jurisdiction=${escape(data.filters.jurisdiction || '—')}`);
+                    parts.push(`<div class="meta-line"><u>Filters:</u> doc_type=${escape(data.filters.doc_type || '—')} jurisdiction=${escape(data.filters.jurisdiction || '—')}</div>`);
                 }
+
+                // Response section (from LLM)
+                const answerText = (typeof data.response === 'string' && data.response) ? data.response : (typeof data.answer === 'string' ? data.answer : '');
+                const sources = Array.isArray(data.sources) ? data.sources : [];
+                if (answerText || sources.length) {
+                    let citationsHtml = '';
+                    if (sources.length) {
+                        const citeItems = sources.map((s) => {
+                            const docId = s.doc_id ?? s.id ?? '';
+                            const docType = s.doc_type ? ` (${escape(s.doc_type)})` : '';
+                            const juris = s.jurisdiction ? ` [${escape(s.jurisdiction)}]` : '';
+                            const chunks = Array.isArray(s.chunks) ? s.chunks : [];
+                            const chunkItems = chunks.map((ch) => {
+                                const sn = (ch.section_number != null && ch.section_number !== '') ? ` §${escape(ch.section_number)}` : '';
+                                const st = ch.section_title ? ` — ${escape(ch.section_title)}` : '';
+                                return `<li>chunk_id=${escape(ch.chunk_id)}${sn}${st}</li>`;
+                            }).join('');
+                            const inner = chunkItems ? `<ul>${chunkItems}</ul>` : '';
+                            return `<li>Doc ${escape(String(docId))}${docType}${juris}${inner}</li>`;
+                        }).join('');
+                        citationsHtml = `<div class="citations"><em>Citations</em><ul>${citeItems}</ul></div>`;
+                    }
+                    parts.push(`
+                        <div class="response-block">
+                            <div class="section-title">Response</div>
+                            <div class="response-text">${escape(answerText)}</div>
+                            ${citationsHtml}
+                        </div>
+                    `);
+                }
+
+                // Results section (vector hits)
                 const results = Array.isArray(data.results) ? data.results : [];
+                let resultsHtml = '';
                 if (!results.length) {
-                    parts.push('<u>Results:</u> <em>No chunks returned (vector index empty or not configured).</em>');
+                    resultsHtml = '<em>No chunks returned (vector index empty or not configured).</em>';
                 } else {
                     const list = results.map((r, idx) => {
                         const dist = (typeof r.distance === 'number') ? r.distance.toFixed(4) : escape(r.distance);
@@ -428,15 +503,22 @@
                         const title = r.title || doc.title || '';
                         const dtype = r.doc_type || doc.doc_type || '';
                         const juris = r.jurisdiction || doc.jurisdiction || '';
-                        return `<li style="margin-bottom:14px; line-height:1.35;">
+                        return `<li style="margin-bottom:12px; line-height:1.35;">
                             <div><strong>#${idx+1}</strong> chunk_id=${escape(r.chunk_id)} distance=${dist}</div>
                             <div style="color:#ccc; font-size:0.7rem; margin-top:2px; font-style:italic;">${escape(title)} ${dtype ? '('+escape(dtype)+')' : ''} ${juris ? '['+escape(juris)+']' : ''}</div>
                             <div style="color:#ccc; font-size:0.85rem; margin-top:4px;">${txt}${r.text && r.text.length > 500 ? '…' : ''}</div>
                         </li>`;
                     }).join('');
-                    parts.push(`<details open><summary style="cursor:pointer; margin-top:10px;"><u>Results (${results.length})</u></summary><ol style="margin-top:8px; padding-left:20px;">${list}</ol></details>`);
+                    resultsHtml = `<ol>${list}</ol>`;
                 }
-                responseDiv.innerHTML = parts.join('\n\n');
+                parts.push(`
+                    <div class="results-section">
+                        <div class="section-title">Results</div>
+                        ${resultsHtml}
+                    </div>
+                `);
+
+                responseDiv.innerHTML = parts.join('\n');
             } catch (err) {
                 loadingDiv.classList.remove('active');
                 responseDiv.innerHTML = `<span style="color:#e53e3e;">Error: ${err.message}</span>`;

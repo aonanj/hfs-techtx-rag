@@ -203,12 +203,28 @@
             setStatus('');
             summaryEl.innerHTML = '';
             spinner();
-            const limit = 0; // No limit
-            fetch(`/api/chunks/all?limit=${limit}`)
+            // Prefer JSONL source so we can show all records
+            fetch(`/api/chunks/jsonl`)
                 .then(r => r.json())
                 .then(data => {
-                    rawChunks = Array.isArray(data.chunks) ? data.chunks : [];
-                    setStatus(rawChunks.length ? `Loaded ${rawChunks.length} chunk(s) (global).` : 'No chunks.');
+                    if (data && data.chunks) {
+                        rawChunks = Array.isArray(data.chunks) ? data.chunks : [];
+                    } else if (Array.isArray(data)) {
+                        rawChunks = data; // tolerate direct array response
+                    } else {
+                        rawChunks = [];
+                    }
+                    // If JSONL missing/empty, fall back to DB list with max limit
+                    if (!rawChunks.length) {
+                        return fetch(`/api/chunks/all?limit=500&offset=0`).then(r => r.json());
+                    }
+                    return { chunks: rawChunks };
+                })
+                .then(data => {
+                    if (data && data.chunks && !rawChunks.length) {
+                        rawChunks = Array.isArray(data.chunks) ? data.chunks : [];
+                    }
+                    setStatus(rawChunks.length ? `Loaded ${rawChunks.length} chunk(s).` : 'No chunks.');
                     currentPage = 1;
                     render();
                     resultsPanel.style.display = 'block';
