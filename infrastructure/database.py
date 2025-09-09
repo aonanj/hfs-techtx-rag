@@ -394,6 +394,10 @@ def add_document(*, sha256, title=None, source_path=None, doc_type=None, jurisdi
         party_roles = ", ".join(party_roles)
     if governing_law and isinstance(governing_law, list):
         governing_law = ", ".join(governing_law)
+    if effective_date and isinstance(effective_date, datetime):
+        effective_date_str = str(effective_date.isoformat())
+    else:
+        effective_date_str = str(effective_date)
 
     if existing['ids'] and existing['metadatas']:
         doc_id = int(existing['ids'][0])
@@ -418,9 +422,7 @@ def add_document(*, sha256, title=None, source_path=None, doc_type=None, jurisdi
             updated = True
         if effective_date and not metadata.get("effective_date"):
             if isinstance(effective_date, datetime):
-                metadata["effective_date"] = effective_date.isoformat()
-            elif isinstance(effective_date, str):
-                metadata["effective_date"] = effective_date
+                metadata["effective_date"] = str(effective_date.isoformat())
             updated = True
 
         if updated:
@@ -435,19 +437,11 @@ def add_document(*, sha256, title=None, source_path=None, doc_type=None, jurisdi
         max_id = max([int(i) for i in all_docs['ids']])
     new_doc_id = max_id + 1
 
-    if effective_date is not None and isinstance(effective_date, datetime):
-       effective_date = effective_date.isoformat()
-    elif effective_date is not None and isinstance(effective_date, str):
-       try:
-           effective_date = datetime.fromisoformat(effective_date)
-       except Exception:
-           effective_date = None
-
     metadata = {
         "sha256": sha256, "title": title, "source_path": source_path, "doc_type": doc_type,
         "jurisdiction": jurisdiction, "industry": industry, "party_roles": party_roles,
         "governing_law": governing_law, "created_at": datetime.now(timezone.utc).isoformat(),
-        "effective_date": effective_date if effective_date else None,
+        "effective_date": effective_date_str if effective_date_str else None,
     }
     metadata = {k: v for k, v in metadata.items() if v is not None}
 

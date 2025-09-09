@@ -208,12 +208,9 @@ def list_documents():
     for d in docs:
         effective_date = getattr(d, 'effective_date', None)
         if effective_date is not None and isinstance(effective_date, datetime):
-            effective_date = effective_date.isoformat()
-        elif effective_date is not None and isinstance(effective_date, str):
-            try:
-                effective_date = datetime.fromisoformat(effective_date)
-            except Exception:
-                effective_date = None
+            effective_date_str = str(effective_date.isoformat())
+        else:
+            effective_date_str = str(effective_date) if effective_date else None
         doc_data = {
             "doc_id": int(getattr(d, 'doc_id')),
             "sha256": d.sha256,
@@ -225,7 +222,7 @@ def list_documents():
             "governing_law": getattr(d, "governing_law", None),
             "party_roles": getattr(d, "party_roles", None),
             "industry": getattr(d, "industry", None),
-            "effective_date": effective_date or None,
+            "effective_date": effective_date_str or None,
             "chunk_count": counts.get(int(getattr(d, 'doc_id')), 0),
         }
         out.append(doc_data)
