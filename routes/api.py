@@ -560,6 +560,8 @@ def query():
                 })
 
         response = refine_query_response(question, results)
+        logger.error(f"Refined response: {response}")
+        logger.error(f"JSONified return: {jsonify({'results': results, 'response': response})}")
 
         return jsonify({"results": results, "response": response}), 200
     except Exception as e:
