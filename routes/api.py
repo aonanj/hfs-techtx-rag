@@ -481,22 +481,71 @@ def query():
 
     try:
         neighbors = find_nearest_neighbors(query=question, num_neighbors=top_k)
-        
+
         if not neighbors:
             return jsonify({"results": [], "message": "No results found."}), 200
 
-        chunk_ids = [int(nid) for nid, dist in neighbors]
-        chunks = get_chunks_by_ids(chunk_ids)
-        
-        # Create a dictionary for quick lookup
-        chunk_map = {chunk.chunk_id: chunk for chunk in chunks}
-        
         results = []
-        for neighbor_id, distance in neighbors:
-            chunk = chunk_map.get(int(neighbor_id))
-            if chunk:
+
+        # Handle both dict-based neighbors (current) and tuple-based (legacy) formats
+        if isinstance(neighbors[0], dict):
+            # Current format from vector_search.find_nearest_neighbors
+            chunk_ids: list[int] = []
+            for n in neighbors:
+                val = n.get("id") if isinstance(n, dict) else None
+                if val is None:
+                    continue
+                try:
+                    chunk_ids.append(int(val))
+                except (ValueError, TypeError):
+                    continue
+
+            chunks = get_chunks_by_ids(chunk_ids)
+            chunk_map = {int(c.chunk_id): c for c in chunks}
+
+            for n in neighbors:
+                val = n.get("id") if isinstance(n, dict) else None
+                if val is None:
+                    continue
+                try:
+                    cid = int(val)
+                except (ValueError, TypeError):
+                    continue
+                chunk = chunk_map.get(cid)
+                if not chunk:
+                    continue
                 doc_info = {}
-                if chunk.document:
+                if getattr(chunk, "document", None):
+                    doc_info = {
+                        "title": chunk.document.title,
+                        "doc_type": chunk.document.doc_type,
+                        "jurisdiction": chunk.document.jurisdiction,
+                    }
+                results.append({
+                    "chunk_id": chunk.chunk_id,
+                    "doc_id": chunk.doc_id,
+                    "text": chunk.text,
+                    "distance": n.get("distance"),
+                    "document": doc_info,
+                })
+        else:
+            # Legacy: list of (id, distance)
+            try:
+                chunk_ids = [int(nid) for nid, _ in neighbors]
+            except Exception:
+                chunk_ids = []
+            chunks = get_chunks_by_ids(chunk_ids)
+            chunk_map = {int(c.chunk_id): c for c in chunks}
+            for neighbor_id, distance in neighbors:
+                try:
+                    cid = int(neighbor_id)
+                except Exception:
+                    continue
+                chunk = chunk_map.get(cid)
+                if not chunk:
+                    continue
+                doc_info = {}
+                if getattr(chunk, "document", None):
                     doc_info = {
                         "title": chunk.document.title,
                         "doc_type": chunk.document.doc_type,
@@ -507,7 +556,7 @@ def query():
                     "doc_id": chunk.doc_id,
                     "text": chunk.text,
                     "distance": distance,
-                    "document": doc_info
+                    "document": doc_info,
                 })
 
         response = refine_query_response(question, results)
