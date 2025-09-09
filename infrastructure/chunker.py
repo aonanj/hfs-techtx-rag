@@ -199,7 +199,7 @@ def get_chunk_info(text: str, chunk_text: str) -> Dict[str, Optional[str]]:
         client = OpenAI(api_key=API_KEY)
         prompt = (
             f"""
-            Examine the attached technology transactions document and the chunk taken from the document then identify respective values for each of the following keys: section_number (section(s), including subsection(s) and/or paragraph(s), applicable to the chunk), section_title (title, header, subheader, etc. applicable to this chunk), clause_type (the type(s) of clause(s) captured in this chunk), path (the section, including subsection(s) or paragraph(s) to the section_number for this chunk -- e.g., if section_number is 9.2(b) for the chunk, the path would be 9 → 9.2 → 9.2(b)), numbers_present (if this chunk includes a section_number in the chunk_text), and definition_terms (a list of all defined terms in this chunk). Consider the substantive meaning of words (e.g., "Page 1 of 12" is not likely to be the clause_type), placement in the document, surrounding text, applicable section, and any other factors that might inform your decision.
+            You are an expert in legal research and analysis, specializing in technology transactions. Examine the attached technology transactions document and the chunk taken from the document then identify respective values for each of the following keys: section_number (full section, including section(s), subsection(s), and/or paragraph(s), applicable to the chunk -- e.g., 9.2(b); VII.A.i; etc.), section_title (header, section, subheader, subsection, etc. names applicable to this chunk), clause_type (the type(s) of clause(s) captured in this chunk), path (the heading, section, subheading, subsection, paragraph, etc. level(s)/name(s)/number(s) that lead to the value of section_number for this chunk -- e.g., if section_number is 9.2(b) for the chunk, the path would be 9 → 9.2 → 9.2(b)), numbers_present (if this chunk includes a section_number in the chunk_text), and definition_terms (a list of all defined terms in this chunk, exclude company and party names; include only legal terms). Consider the substantive meaning of words (e.g., "Page 1 of 12" is not likely to be the clause_type), placement in the document, surrounding text, applicable section, and any other factors that might inform your decision. Chunks may include multiple values for a given key (e.g., multiple section titles or clause types); in such cases, return all applicable values as a comma-separated list. If you cannot identify a distinct value corresponding to one of the keys, respond with null for that key.
             Return a response in following JSON format only: 
             {{
                 "section_number": section_number, 
@@ -209,7 +209,7 @@ def get_chunk_info(text: str, chunk_text: str) -> Dict[str, Optional[str]]:
                 "numbers_present": numbers_present, 
                 "definition_terms": [definition_terms]
             }}. 
-            Do not return anything else outside of the JSON object. If you cannot identify a distinct value corresponding to one of the keys, respond with null for that key.
+            Do not return anything else outside of the JSON object. 
             --- DOCUMENT TEXT START ---\n
             {text}\n
             --- DOCUMENT TEXT END ---\n\n
@@ -222,7 +222,6 @@ def get_chunk_info(text: str, chunk_text: str) -> Dict[str, Optional[str]]:
         response = client.responses.create(
             model="gpt-5-nano",
             input=prompt,
-			reasoning={"effort": "minimal"},
 			text={"verbosity": "low"},
         )
 
