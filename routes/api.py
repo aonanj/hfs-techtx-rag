@@ -295,6 +295,7 @@ def list_chunks_from_jsonl():
     and normalizes records to the same shape used in the table UI. It also
     augments with embedding_count using the ChromaDB store when chunk IDs exist.
     """
+
     path = os.path.join(CHUNKS_DIR, "chunks.jsonl")
     rows: list[dict] = []
 

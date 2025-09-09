@@ -219,17 +219,14 @@ def get_chunk_info(text: str, chunk_text: str) -> Dict[str, Optional[str]]:
             """
         )
 
-        ai_model = "gpt-5-mini"
-
-        response = client.chat.completions.create(
-            model=ai_model,
-            messages=[
-                {"role": "system", "content": "Identify values for the following keys: section_number, section_title, clause_type, path, numbers_present, and definition_terms based on the following text.\n"},
-                {"role": "user", "content": prompt},
-            ]
+        response = client.responses.create(
+            model="gpt-5-nano",
+            input=prompt,
+			reasoning={"effort": "minimal"},
+			text={"verbosity": "low"},
         )
 
-        response = response.choices[0].message.content if response.choices else []
+        response = response.output_text if response else ""
         logger.info(f"AI chunk raw response: {response}")
         candidate = (response or [])
         logger.info(f"AI chunk response: {candidate}")

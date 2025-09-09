@@ -61,17 +61,14 @@ def get_manifest_info(text: str) -> Dict[str, Optional[str]]:
             """
         )
 
-        ai_model = "gpt-5-mini"
-
-        response = client.chat.completions.create(
-            model=ai_model,
-            messages=[
-                {"role": "system", "content": "Extract the document's the role of the party or parties, the governing law, the industry, and the version or effective date based from the following text.\n"},
-                {"role": "user", "content": prompt},
-            ]
+        response = client.responses.create(
+            model="gpt-5-nano",
+            input=prompt,
+			reasoning={"effort": "minimal"},
+			text={"verbosity": "low"},
         )
 
-        response = response.choices[0].message.content if response.choices else []
+        response = response.output_text if response else ""
         logger.info(f"AI manifest raw response: {response}")
         candidate = (response or [])
         logger.info(f"AI manifest response: {candidate}")
