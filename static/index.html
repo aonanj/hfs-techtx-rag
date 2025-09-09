@@ -461,8 +461,24 @@
                 }
 
                 // Response section (from LLM)
-                const answerText = (typeof data.response === 'string' && data.response) ? data.response : (typeof data.answer === 'string' ? data.answer : '');
-                const sources = Array.isArray(data.sources) ? data.sources : [];
+                let answerText = '';
+                let sources = [];
+                if (typeof data.response === 'string') {
+                    answerText = data.response;
+                } else if (data.response && typeof data.response === 'object') {
+                    if (typeof data.response.response === 'string') {
+                        answerText = data.response.response;
+                    }
+                    if (Array.isArray(data.response.sources)) {
+                        sources = data.response.sources;
+                    }
+                }
+                if (!answerText && typeof data.answer === 'string') {
+                    answerText = data.answer;
+                }
+                if (!sources.length && Array.isArray(data.sources)) {
+                    sources = data.sources;
+                }
                 if (answerText || sources.length) {
                     let citationsHtml = '';
                     if (sources.length) {
