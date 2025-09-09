@@ -276,7 +276,9 @@ def slugify(text: str) -> str:
 - For notebooks, keep them **thin**; move logic into importable modules and test there.
 - Avoid outdated APIs or patterns, **prefer the modern alternative** (e.g., `pathlib` over `os.path`). Check for latest APIs and accepted patterns.
 - If a compact/simplified variant improves reliability with negligible cost, **choose the simpler path**.
-- If a suggestion introduces magic constants or unclear behavior, **inline comments** must explain rationale or refactor to named constants.
+- If a suggestion introduces magic constants or unclear behavior, **inline comments** may be used explain rationale or refactor to named constants.
+- When refactoring, ensure **backward compatibility** unless explicitly told to break it.
+- Stay within the **scope of the prompt**. Ask for clarification if the prompt is ambiguous or incomplete. Ask before making assumptions. Do not attempt to optimize or refactor beyond the stated requirements without first confirming with the user.
 
 ---
 
