@@ -383,6 +383,18 @@ def session_scope():
 # --------------- CRUD ---------------
 def add_document(*, sha256, title=None, source_path=None, doc_type=None, jurisdiction=None, industry=None, party_roles=None, governing_law=None, effective_date=None):
     existing = _documents_collection.get(where={"sha256": sha256})
+
+    if doc_type and isinstance(doc_type, list):
+        doc_type = ", ".join(doc_type)
+    if jurisdiction and isinstance(jurisdiction, list):
+        jurisdiction = ", ".join(jurisdiction)
+    if industry and isinstance(industry, list):
+        industry = ", ".join(industry)
+    if party_roles and isinstance(party_roles, list):
+        party_roles = ", ".join(party_roles)
+    if governing_law and isinstance(governing_law, list):
+        governing_law = ", ".join(governing_law)
+
     if existing['ids'] and existing['metadatas']:
         doc_id = int(existing['ids'][0])
         metadata = dict(existing['metadatas'][0])
@@ -566,6 +578,12 @@ def get_document_chunk_counts(doc_ids: list[int]) -> dict[int, int]:
                 counts[int(doc_id)] += 1
     return counts
 
+def get_max_document_id():
+    all_ids = _documents_collection.get(include=[])['ids']
+    if not all_ids:
+        return -1
+    return max([int(i) for i in all_ids])
+
 def get_all_chunks(limit: int = 200, offset: int = 0):
     all_ids = _chunks_collection.get(include=[])['ids']
     paginated_ids = sorted([int(i) for i in all_ids])[offset : offset + limit]
@@ -601,9 +619,60 @@ def get_embedding_for_chunk(chunk_id: int):
 def delete_document(doc_id: int):
     chunks_to_delete = _chunks_collection.get(where={"doc_id": doc_id})
     if chunks_to_delete['ids']:
-        _chunks_collection.delete(ids=chunks_to_delete['ids'])
+        chunk_ids = [str(cid) for cid in chunks_to_delete['ids']]
+        # Also delete corresponding embeddings from the external embeddings collection
+        try:
+            from .embeddings import get_chroma_collection  # local import to avoid cycles
+            vec_coll = get_chroma_collection()
+            try:
+                vec_coll.delete(ids=chunk_ids)
+            except Exception as e:  # pragma: no cover - defensive
+                _logger.error("Failed to delete embeddings for chunk_ids=%s: %s", chunk_ids[:5], e)
+        except Exception as e:  # pragma: no cover - env or import issues
+            _logger.error("Could not access embeddings collection to delete vectors: %s", e)
+
+        # Delete chunks (and their stored vectors in the chunks collection)
+        _chunks_collection.delete(ids=chunk_ids)
     
     _documents_collection.delete(ids=[str(doc_id)])
+
+def update_document(doc_id: int, updates: Dict[str, Any]) -> Optional[Document]:
+    """Update metadata fields for a document.
+
+    Only known metadata keys are updated. Returns the updated Document or None if not found.
+    """
+    allowed = {
+        "title",
+        "doc_type",
+        "jurisdiction",
+        "governing_law",
+        "party_roles",
+        "industry",
+        "effective_date",
+        "source_path",
+    }
+    try:
+        existing = _documents_collection.get(ids=[str(doc_id)])
+        if not existing['ids'] or not existing['metadatas']:
+            return None
+        meta = dict(existing['metadatas'][0])
+        # Normalize list values to comma-separated strings
+        def _norm(v):
+            if isinstance(v, list):
+                return ", ".join(str(x) for x in v)
+            return v
+        for k, v in updates.items():
+            if k in allowed:
+                if k == "effective_date" and isinstance(v, str):
+                    # store as ISO string as-is; validation elsewhere
+                    meta[k] = v
+                else:
+                    meta[k] = _norm(v)
+        _documents_collection.update(ids=[str(doc_id)], metadatas=[meta])
+        return Document.from_chroma(doc_id, meta)
+    except Exception as e:  # pragma: no cover - defensive
+        _logger.error(f"Failed to update document {doc_id}: {e}")
+        return None
 
 def clear_database():
     _client.delete_collection(name="documents")
@@ -622,7 +691,7 @@ __all__ = [
     "add_document", "add_chunk", "upsert_embedding",
     "get_document", "get_document_by_sha", "get_chunks_for_doc", "get_chunks_by_ids",
     "get_documents", "get_document_chunk_counts", "get_all_chunks", "get_max_chunk_id",
-    "get_embedding_for_chunk", "delete_document", "clear_database",
+    "get_embedding_for_chunk", "delete_document", "clear_database", "update_document",
     "TOK_VER", "SEG_VER", "ping",
     "Document", "Chunk", "Embedding",
 ]

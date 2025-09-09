@@ -405,9 +405,9 @@ def chunk_doc(text: str, doc_id: int, max_chars: int = 1200, overlap: int = 150,
 	# Link prev/next
 	for i, rec in enumerate(chunk_metadata_records):
 		if i > 0:
-			rec['prev_id'] = chunk_metadata_records[i-1]['index']
+			rec['prev_id'] = chunk_metadata_records[i-1]['id']
 		if i < len(chunk_metadata_records) - 1:
-			rec['next_id'] = chunk_metadata_records[i+1]['index']
+			rec['next_id'] = chunk_metadata_records[i+1]['id']
 
 	records = json.dumps(chunk_metadata_records, ensure_ascii=False, indent=0)
 	path = os.path.join(CHUNKS_DIR, "chunks.jsonl")

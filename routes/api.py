@@ -1,8 +1,9 @@
 # api.py
 import os
-from flask import Blueprint, request, jsonify
+from flask import Blueprint, request, jsonify, send_from_directory
 from werkzeug.utils import secure_filename
 from infrastructure.logger import get_logger
+from random import randint
 
 from infrastructure.database import (
     init_db,
@@ -13,15 +14,19 @@ from infrastructure.database import (
     get_document_chunk_counts,
     get_all_chunks,
     full_reset_chroma,
+    get_max_document_id,
+    get_chunks_by_ids,
+    update_document,
+    delete_document,
 )
 from infrastructure.document_processor import (
     extract_text,
     extract_title_type_jurisdiction,
     sha256_text,
+    upsert_manifest_record
 )
 from infrastructure.chunker import chunk_doc
 from infrastructure.vector_search import find_nearest_neighbors
-from infrastructure.database import get_chunks_by_ids
 
 api_bp = Blueprint("api", __name__, url_prefix="/api")
 logger = get_logger()
@@ -29,6 +34,8 @@ logger = get_logger()
 ALLOWED_EXTENSIONS = {"pdf", "docx", "txt"}
 UPLOAD_FOLDER = os.getenv("UPLOAD_FOLDER", "/data/corpus_raw")
 CLEAN_FOLDER = os.getenv("CLEAN_FOLDER", "/data/corpus_clean")
+MANIFEST_DIR = os.getenv("MANIFEST_DIR", "/data/manifest")
+RAW_PREFIX = "/data/corpus_raw"
 
 def allowed_file(filename: str) -> bool:
     return "." in filename and filename.rsplit(".", 1)[1].lower() in ALLOWED_EXTENSIONS
@@ -58,8 +65,26 @@ def add_doc():
 
     if not doc:
         filename = secure_filename(file.filename)
-        raw_path = os.path.join(UPLOAD_FOLDER, filename)
-        txt_filename = filename.rsplit('.', 1)[0] + '.txt'
+
+        doc_info = extract_title_type_jurisdiction(clean_text)
+        title = doc_info.get("title") or file.filename.split('.')[0]
+        if not doc_type and "doc_type" in doc_info:
+            doc_type = doc_info.get("doc_type")
+        if not jurisdiction and "jurisdiction" in doc_info:
+            jurisdiction = doc_info.get("jurisdiction")
+
+        max_doc_id = get_max_document_id()
+
+        current_doc_id = max_doc_id + 1 if max_doc_id is not None else 0
+        file_format = file.mimetype
+        file.stream.seek(0, 2)
+        file_size = file.tell()
+        file.stream.seek(0)
+
+        raw_filename = f"{str(current_doc_id)}" + "." + filename.rsplit('.', 1)[1].lower()
+
+        raw_path = os.path.join(UPLOAD_FOLDER, raw_filename)
+        txt_filename = f"{str(current_doc_id)}" + '.txt'
         clean_path = os.path.join(CLEAN_FOLDER, txt_filename)
 
         file.stream.seek(0)
@@ -70,15 +95,29 @@ def add_doc():
             f.write(clean_text)
         logger.info("Saved clean text to %s", clean_path)
 
-        doc_info = extract_title_type_jurisdiction(clean_text)
-        title = doc_info.get("title") or file.filename.split('.')[0]
-        if not doc_type and "doc_type" in doc_info:
-            doc_type = doc_info.get("doc_type")
-        if not jurisdiction and "jurisdiction" in doc_info:
-            jurisdiction = doc_info.get("jurisdiction")
-        
-        doc = add_document(sha256=content_sha, title=title, source_path=raw_path, doc_type=doc_type, jurisdiction=jurisdiction)
+        manifest_record = upsert_manifest_record(
+            sha256=content_sha,
+            title=title,
+            source_path=raw_path,
+            clean_path=clean_path,
+            doc_type=doc_type or "",
+            jurisdiction=jurisdiction or "",
+            doc_id=current_doc_id or randint(100, 999),
+            text=clean_text,
+            size=str(file_size),
+            content_type=file_format,
+        )
+
+        industry = manifest_record.get("industry") or None
+        party_roles = manifest_record.get("party_roles") or None
+        governing_law = manifest_record.get("governing_law") or None
+        effective_date = manifest_record.get("effective_date") or None
+
+        doc = add_document(sha256=content_sha, title=title, source_path=raw_path, doc_type=doc_type, jurisdiction=jurisdiction, industry=industry, party_roles=party_roles, governing_law=governing_law, effective_date=effective_date)
         doc_id_val = getattr(doc, "doc_id", 0)
+
+        logger.error("INFO: Added document id=%s, sha256=%s, title=%s, doc_type=%s, jurisdiction=%s", doc_id_val, content_sha, title, doc_type, jurisdiction)
+        logger.error(f"INFO: DB doc_id: {doc_id_val}; Manifest doc_id: {current_doc_id} ")
 
     else:
         doc_id_val = getattr(doc, "doc_id", 0)
@@ -290,3 +329,155 @@ def reset_system():
         "dirs_deleted": len([p for p in erased_paths if p.endswith('/')]),
         "chroma_reset": chroma_ok,
     }), 200
+
+
+# -------- Manifest JSONL helpers and endpoints --------
+def _manifest_path() -> str:
+    os.makedirs(MANIFEST_DIR, exist_ok=True)
+    return os.path.join(MANIFEST_DIR, "manifest.jsonl")
+
+def _read_manifest() -> list[dict]:
+    path = _manifest_path()
+    rows: list[dict] = []
+    if not os.path.exists(path):
+        return rows
+    try:
+        with open(path, "r", encoding="utf-8") as f:
+            for line in f:
+                line = line.strip()
+                if not line:
+                    continue
+                try:
+                    rows.append(__import__("json").loads(line))
+                except Exception:
+                    continue
+    except Exception as e:
+        logger.error("Failed reading manifest: %s", e)
+    return rows
+
+def _write_manifest(rows: list[dict]) -> bool:
+    path = _manifest_path()
+    tmp_path = path + ".tmp"
+    try:
+        with open(tmp_path, "w", encoding="utf-8") as f:
+            for r in rows:
+                f.write(__import__("json").dumps(r) + "\n")
+        os.replace(tmp_path, path)
+        return True
+    except Exception as e:
+        logger.error("Failed writing manifest: %s", e)
+        try:
+            if os.path.exists(tmp_path):
+                os.remove(tmp_path)
+        except Exception:
+            pass
+        return False
+
+
+@api_bp.route("/manifest", methods=["GET"])
+def manifest_get():
+    rows = _read_manifest()
+    # minimal projection for UI: include keys asked by user, but pass through extra fields too
+    return jsonify(rows), 200
+
+
+@api_bp.route("/manifest", methods=["PATCH"])
+def manifest_patch():
+    payload = request.get_json(force=True) or {}
+    doc_id = payload.get("doc_id")
+    updates = payload.get("updates") or {}
+    if doc_id is None:
+        return jsonify({"error": "doc_id required"}), 400
+    try:
+        did = int(doc_id)
+    except Exception:
+        return jsonify({"error": "invalid doc_id"}), 400
+
+    # Fields not editable: doc_id, source_path
+    updates.pop("doc_id", None)
+    updates.pop("source_path", None)
+
+    rows = _read_manifest()
+    found = False
+    for r in rows:
+        try:
+            rid = int(str(r.get("doc_id")))
+        except Exception:
+            continue
+        if rid == did:
+            for k, v in updates.items():
+                r[k] = v
+            found = True
+            break
+    if not found:
+        return jsonify({"error": "doc not found"}), 404
+
+    if not _write_manifest(rows):
+        return jsonify({"error": "failed to persist manifest"}), 500
+
+    # Update DB metadata too
+    db_doc = update_document(did, updates)
+    if db_doc is None:
+        # Not fatal for manifest, but report
+        logger.error("update_document failed for doc_id=%s", did)
+
+    return jsonify({"ok": True}), 200
+
+
+@api_bp.route("/manifest", methods=["DELETE"])
+def manifest_delete():
+    payload = request.get_json(force=True) or {}
+    doc_id = payload.get("doc_id")
+    if doc_id is None:
+        return jsonify({"error": "doc_id required"}), 400
+    try:
+        did = int(doc_id)
+    except Exception:
+        return jsonify({"error": "invalid doc_id"}), 400
+
+    rows = _read_manifest()
+    new_rows: list[dict] = []
+    record: dict | None = None
+    for r in rows:
+        try:
+            rid = int(str(r.get("doc_id")))
+        except Exception:
+            new_rows.append(r)
+            continue
+        if rid == did:
+            record = r
+            continue
+        new_rows.append(r)
+
+    if record is None:
+        return jsonify({"error": "doc not found"}), 404
+
+    # Persist manifest removal
+    if not _write_manifest(new_rows):
+        return jsonify({"error": "failed to persist manifest"}), 500
+
+    # Delete from DB
+    try:
+        delete_document(did)
+    except Exception as e:
+        logger.error("Failed deleting document %s from DB: %s", did, e)
+
+    # Delete files from corpus_raw and corpus_clean
+    for key in ("source_path", "clean_path"):
+        p = record.get(key)
+        if p and isinstance(p, str):
+            try:
+                if os.path.exists(p):
+                    os.remove(p)
+            except Exception as e:
+                logger.error("Failed removing %s: %s", p, e)
+
+    return jsonify({"ok": True}), 200
+
+
+@api_bp.route("/raw/<path:subpath>", methods=["GET"])
+def serve_raw(subpath: str):
+    # Serve files from /data/corpus_raw for clicking source_path links in UI
+    # To use, ensure source_path links are constructed as /api/raw/<relative to RAW_PREFIX>
+    abs_path = os.path.join(RAW_PREFIX, "")
+    return send_from_directory(abs_path, subpath, as_attachment=False)
