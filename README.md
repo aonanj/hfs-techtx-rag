@@ -1,6 +1,17 @@
-# Tech Transfer RAG
+# Technology Transactions RAG
 
-A Flask-based Retrieval-Augmented Generation (RAG) application for document processing, embedding generation, and semantic search with AI-powered chat capabilities.
+A Flask-based Retrieval-Augmented Generation (RAG) application for document processing, embedding generation, and semantic search specific to technology transactions use cases in the legal domain.
+
+---
+title: Technology Transactions RAG
+emoji: 📑
+colorFrom: blue
+colorTo: indigo
+sdk: docker
+sdk_version: "0.0.1"
+app_file: app.py
+pinned: false
+---
 
 ## 🌟 Features
 
