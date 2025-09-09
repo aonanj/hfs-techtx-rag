@@ -14,11 +14,10 @@ def create_app():
     CORS(app)
 
     for k,v in {
-        "PERSIST_DIRECTORY": "/data/chdata",
-        "XDG_CACHE_HOME": "/data/.cache",
+        "PERSIST_DIRECTORY": "/data/chroma_db",
+        "XDG_CACHE_HOME": "/data/cache",
         "HF_HOME": "/data/.huggingface",
-        "TRANSFORMERS_CACHE": "/data/.cache/hf",
-        "SENTENCE_TRANSFORMERS_HOME": "/data/.cache/sentence-transformers",
+        "SENTENCE_TRANSFORMERS_HOME": "/data/cache/sentence-transformers",
         "HOME": "/data",
     }.items():
         os.environ.setdefault(k, v)

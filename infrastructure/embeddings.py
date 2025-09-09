@@ -40,7 +40,7 @@ from .logger import get_logger
 logger = get_logger()
 
 DEFAULT_MODEL = os.getenv("EMBEDDING_MODEL", "text-embedding-3-large")
-CHROMA_DATA_PATH = "/data/chdata"
+CHROMA_DATA_PATH = "/data/chroma_db"
 CHROMA_COLLECTION = "techtrans_rag"
 
 
@@ -56,9 +56,9 @@ def get_chroma_collection():
         api_key=api_key,
         model_name=DEFAULT_MODEL
     )
-    
-    client = chromadb.PersistentClient(path=os.environ["PERSIST_DIRECTORY"])
-    
+
+    client = chromadb.PersistentClient(path=os.getenv("PERSIST_DIRECTORY", CHROMA_DATA_PATH))
+
     # Pass the embedding function to the get_or_create_collection method
     collection = client.get_or_create_collection(name=CHROMA_COLLECTION)
     

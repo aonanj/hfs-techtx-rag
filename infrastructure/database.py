@@ -49,7 +49,7 @@ def _setup_cache_dir():
 
 _setup_cache_dir()
 
-CHROMA_PATH = os.getenv("PERSIST_DIRECTORY", "/data/chdata")
+CHROMA_PATH = os.getenv("PERSIST_DIRECTORY", "/data/chroma_db")
 
 def _init_chroma_client():
     """Initialize a Chroma client with robust write tests & fallbacks.
@@ -75,7 +75,7 @@ def _init_chroma_client():
     # Allow a force-tmp override (e.g. CHROMA_FORCE_TMP=1)
     force_tmp = os.getenv("CHROMA_FORCE_TMP") in {"1", "true", "yes", "on"}
 
-    env_path = os.getenv("PERSIST_DIRECTORY")
+    env_path = os.getenv("PERSIST_DIRECTORY", "chroma_db")
     # Order of path attempts (most desired first)
     candidates: list[str] = []
     if force_tmp:
