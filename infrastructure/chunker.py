@@ -425,10 +425,26 @@ def chunk_doc(text: str, doc_id: int, max_chars: int = 1200, overlap: int = 150,
 	# Generate embeddings and upsert to ChromaDB
 	try:
 		collection = get_chroma_collection()
+		# ChromaDB metadatas must be Dict[str, Bool|Int|Float|Str] with no None values.
+		# Also drop internal keys and any unsupported types (coerce to str as last resort).
+		def _chroma_safe_metadata(rec: dict) -> dict:
+			out: dict = {}
+			for k, v in rec.items():
+				if k in {"id", "text", "prev_id", "next_id", "metadata"}:
+					continue
+				if v is None:
+					continue
+				if isinstance(v, (bool, int, float, str)):
+					out[k] = v
+				else:
+					# Fallback: stringify lists/dicts or other types
+					out[k] = str(v)
+			return out
+
 		collection.add(
 			ids=[str(cid) for cid in chunk_ids],
 			documents=chunk_texts,
-			metadatas=[{k: v for k, v in rec.items() if k not in ['id', 'text', 'prev_id', 'next_id']} for rec in chunk_metadata_records]
+			metadatas=[_chroma_safe_metadata(rec) for rec in chunk_metadata_records]
 		)
 		logger.info('Upserted %d embeddings to ChromaDB for doc_id=%s', len(chunk_ids), doc_id)
 
