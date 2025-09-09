@@ -257,7 +257,7 @@ def get_chunk_info(text: str, chunk_text: str) -> Dict[str, Optional[str]]:
         logger.error(f"Error extracting values from text: {e}")
         return {}
 
-def chunk_doc(text: str, doc_id: str, max_chars: int = 1200, overlap: int = 150, *, max_tokens: Optional[int] = None, token_overlap: Optional[int] = None) -> List[int]:
+def chunk_doc(text: str, doc_id: int, max_chars: int = 1200, overlap: int = 150, *, max_tokens: Optional[int] = None, token_overlap: Optional[int] = None) -> List[int]:
 	"""Chunk a cleaned text file, persist chunks, metadata, embeddings, and index.
 
 	Returns list of chunk IDs.
@@ -286,8 +286,7 @@ def chunk_doc(text: str, doc_id: str, max_chars: int = 1200, overlap: int = 150,
 
 
 	pages = _split_pages(text)
-	logger.info("Chunking doc_id=%s pages=%d (max_chars=%d overlap=%d)", doc_id, len(pages), max_chars, overlap)
-	doc_iden = doc_id  # avoid shadowing
+	logger.error("Chunking doc_id=%s pages=%d (max_chars=%d overlap=%d)", doc_id, len(pages), max_chars, overlap)
 	# Flatten paragraphs with page indices
 	para_with_pages: List[Tuple[int, str]] = []
 	for p_idx, page_text in enumerate(pages, start=1):
@@ -368,7 +367,7 @@ def chunk_doc(text: str, doc_id: str, max_chars: int = 1200, overlap: int = 150,
 		chunk_id = start_chunk_id + idx
 
 		new_chunk = add_chunk(
-			doc_id=int(doc_iden),
+			doc_id=doc_id,
 			chunk_id=chunk_id,
 			chunk_index=idx,
 			text=chunk_text,
@@ -381,10 +380,10 @@ def chunk_doc(text: str, doc_id: str, max_chars: int = 1200, overlap: int = 150,
 			numbers_present=numbers_present,
 			definition_terms=definition_terms,
 		)
-		logger.info("Persisted chunk %s (pages %d-%d) for doc_id=%s", chunk_id, page_s, page_e, doc_id)
+		logger.error("Persisted chunk %s (pages %d-%d) for doc_id=%s", chunk_id, page_s, page_e, doc_id)
 
 		chunk_ids.append(chunk_id)
-		logger.info(f"Chunk {chunk_id} info: {new_chunk}")
+		logger.error(f"Chunk {chunk_id} info: {new_chunk}")
 
 		chunk_metadata_records.append({
 			'id': chunk_id,
@@ -410,8 +409,6 @@ def chunk_doc(text: str, doc_id: str, max_chars: int = 1200, overlap: int = 150,
 		if i < len(chunk_metadata_records) - 1:
 			rec['next_id'] = chunk_metadata_records[i+1]['index']
 
-	# Write / upsert JSONL file
-	os.makedirs(CHUNKS_DIR, exist_ok=True)
 	records = json.dumps(chunk_metadata_records, ensure_ascii=False, indent=0)
 	path = os.path.join(CHUNKS_DIR, "chunks.jsonl")
 

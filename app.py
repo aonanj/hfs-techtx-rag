@@ -18,6 +18,10 @@ def create_app():
         "XDG_CACHE_HOME": "/data/cache",
         "HF_HOME": "/data/.huggingface",
         "HOME": "/data",
+        "UPLOAD_FOLDER": "/data/corpus_raw",
+        "CLEANED_FOLDER": "/data/corpus_clean",
+        "MANIFEST_DIR": "/data/manifest",
+        "CHUNKS_DIR": "/data/chunks"
     }.items():
         os.environ.setdefault(k, v)
         abs_path = os.path.abspath(v)

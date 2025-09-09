@@ -263,7 +263,6 @@ def upsert_manifest_record(text: str, size: str, doc_id: str, sha256: str, sourc
     manifest_path = MANIFEST_DIR + "/manifest.jsonl"
     
     try:
-        os.makedirs(MANIFEST_DIR, exist_ok=True)
         
         with open(manifest_path, "a", encoding="utf-8") as f:
             f.write(line)

@@ -52,8 +52,6 @@ def add_doc():
 
     clean_text = extract_text(file=file)
     content_sha = sha256_text(clean_text)
-    os.makedirs(UPLOAD_FOLDER, exist_ok=True)
-    os.makedirs(CLEAN_FOLDER, exist_ok=True)
     doc = get_document_by_sha(content_sha)
     title = None
     doc_id_val = None
@@ -80,10 +78,10 @@ def add_doc():
             jurisdiction = doc_info.get("jurisdiction")
         
         doc = add_document(sha256=content_sha, title=title, source_path=raw_path, doc_type=doc_type, jurisdiction=jurisdiction)
-        doc_id_val = getattr(doc, "doc_id", None)
+        doc_id_val = getattr(doc, "doc_id", 0)
 
     else:
-        doc_id_val = getattr(doc, "doc_id", None)
+        doc_id_val = getattr(doc, "doc_id", 0)
         title = getattr(doc, "title", None)
         try:
             doc = add_document(sha256=content_sha, doc_type=doc_type, jurisdiction=jurisdiction)
@@ -91,7 +89,7 @@ def add_doc():
             pass
 
     try:
-        chunks = chunk_doc(text=clean_text, doc_id=str(doc_id_val))
+        chunks = chunk_doc(text=clean_text, doc_id=int(doc_id_val))
         logger.info("Chunked document into %d chunks", len(chunks))
     except Exception as e:
         logger.exception("Chunking failed: %s", e)
