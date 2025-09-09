@@ -272,7 +272,8 @@
 <body>
     <div class="header-section">
         <h1 class="header-title">Technology Transactions Assistant</h1>
-        <p class="header-subtitle">A RAG model that restricts GPT-5 to technology transactions use cases in the legal domain. To add to the corpus, visit <a href="/upload" class="upload-link">/upload</a>.</p>
+        <p class="header-subtitle">A RAG model that restricts frontier-level foundation models to technology transactions use cases in the legal domain.</p>
+        <p class="header-subtitle">To add to the corpus, visit <a href="/api/upload" class="upload-link">/upload</a>. To view/edit the corpus, visit <a href="/api/manifest" class="upload-link">/api/manifest</a></p>
     </div>
     
     <div class="main-container">
@@ -334,7 +335,7 @@
 
     <div id="dangerZone" style="margin-top:28px; font-size:0.7rem; text-align:center; max-width:1200px; width:100%; opacity:0.65;">
         <details>
-            <summary style="cursor:pointer;">Danger Zone</summary>
+            <summary style="cursor:pointer;">Admin Only</summary>
             <div style="margin-top:10px;">
                 <button id="resetBtn" style="background:#660000; color:#fff; border:1px solid #aa2222; padding:8px 14px; border-radius:6px; cursor:pointer; font-size:0.75rem; letter-spacing:0.5px;">Reset / Wipe Corpus</button>
                 <p style="margin-top:8px; line-height:1.3;">This sends a POST to <code>/api/reset</code> and irreversibly deletes all files under <code>/data</code> and clears Chroma collections. Use only in development.</p>
@@ -422,9 +423,13 @@
                     const list = results.map((r, idx) => {
                         const dist = (typeof r.distance === 'number') ? r.distance.toFixed(4) : escape(r.distance);
                         const txt = escape((r.text || '').slice(0, 500));
+                        const doc = r.document || {};
+                        const title = r.title || doc.title || '';
+                        const dtype = r.doc_type || doc.doc_type || '';
+                        const juris = r.jurisdiction || doc.jurisdiction || '';
                         return `<li style="margin-bottom:14px; line-height:1.35;">
                             <div><strong>#${idx+1}</strong> chunk_id=${escape(r.chunk_id)} distance=${dist}</div>
-                            <div style="color:#ccc; font-size:0.7rem; margin-top:2px; font-style:italic;">${escape(r.title || '')} ${r.doc_type ? '('+escape(r.doc_type)+')' : ''} ${r.jurisdiction ? '['+escape(r.jurisdiction)+']' : ''}</div>
+                            <div style="color:#ccc; font-size:0.7rem; margin-top:2px; font-style:italic;">${escape(title)} ${dtype ? '('+escape(dtype)+')' : ''} ${juris ? '['+escape(juris)+']' : ''}</div>
                             <div style="color:#ccc; font-size:0.85rem; margin-top:4px;">${txt}${r.text && r.text.length > 500 ? '…' : ''}</div>
                         </li>`;
                     }).join('');
@@ -437,22 +442,31 @@
             }
         });
 
-        // Reset handler
+        // Reset handler (optional password protected)
         const resetBtn = document.getElementById('resetBtn');
         if (resetBtn) {
             resetBtn.addEventListener('click', async () => {
                 if (!confirm('This will DELETE all data under /data and clear embeddings. Continue?')) return;
+                let password = null;
+                try {
+                    password = prompt('Enter reset password (leave blank if not configured):');
+                } catch (e) { password = null; }
                 resetBtn.disabled = true;
                 resetBtn.textContent = 'Resetting...';
                 try {
                     const resp = await fetch('/api/reset', {
                         method: 'POST',
                         headers: { 'Content-Type': 'application/json' },
-                        body: JSON.stringify({ confirm: true })
+                        body: JSON.stringify({ confirm: true, password })
                     });
                     const data = await resp.json().catch(() => ({}));
                     if (!resp.ok) {
-                        alert('Reset failed: ' + (data.error || resp.statusText));
+                        const reason = data.error || resp.statusText || 'Unknown error';
+                        if (resp.status === 403) {
+                            alert('Reset denied: incorrect or missing password.');
+                        } else {
+                            alert('Reset failed: ' + reason);
+                        }
                     } else {
                         alert('Reset complete. Files deleted: ' + (data.files_deleted ?? 'n/a'));
                         location.reload();

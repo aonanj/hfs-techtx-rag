@@ -30,6 +30,7 @@ from infrastructure.vector_search import find_nearest_neighbors
 
 api_bp = Blueprint("api", __name__, url_prefix="/api")
 logger = get_logger()
+RESET_PASSWORD = os.getenv("RESET_PASSWORD")
 
 ALLOWED_EXTENSIONS = {"pdf", "docx", "txt"}
 UPLOAD_FOLDER = os.getenv("UPLOAD_FOLDER", "/data/corpus_raw")
@@ -292,6 +293,15 @@ def reset_system():
     Optional JSON body: {"confirm": true}
     Reject unless confirm flag present to reduce accidental invocation.
     """
+    # If a RESET_PASSWORD env var is set, require a matching password
+    try:
+        payload = request.get_json(silent=True) or {}
+    except Exception:
+        payload = {}
+    if RESET_PASSWORD:
+        supplied = payload.get("password") or request.headers.get("X-Reset-Password")
+        if not supplied or supplied != RESET_PASSWORD:
+            return jsonify({"error": "forbidden"}), 403
 
     data_root = "/data"
     erased_paths: list[str] = []
