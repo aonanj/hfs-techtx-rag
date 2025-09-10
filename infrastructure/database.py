@@ -254,7 +254,10 @@ class Document:
     @classmethod
     def from_chroma(cls, doc_id: int, metadata: Dict[str, Any]):
         if metadata.get('effective_date') and isinstance(metadata['effective_date'], str):
-            metadata['effective_date'] = datetime.fromisoformat(metadata['effective_date'])
+            try:
+                metadata['effective_date'] = datetime.fromisoformat(metadata['effective_date'])
+            except ValueError:
+                pass
         if metadata.get('created_at') and isinstance(metadata['created_at'], str):
             metadata['created_at'] = datetime.fromisoformat(metadata['created_at'])
         
