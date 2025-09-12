@@ -130,7 +130,7 @@ def add_doc():
             content_type=file_format,
         )
 
-        logger.error("INFO: Added document id=%s, sha256=%s, title=%s, doc_type=%s, jurisdiction=%s", doc_id_val, content_sha, title, doc_type, jurisdiction)
+        logger.info("INFO: Added document id=%s, sha256=%s, title=%s, doc_type=%s, jurisdiction=%s", doc_id_val, content_sha, title, doc_type, jurisdiction)
 
         try:
             chunks = chunk_doc(text=clean_text, doc_id=doc_id_val)
@@ -584,8 +584,8 @@ def query():
                 })
 
         response = refine_query_response(question, results)
-        logger.error(f"Refined response: {response}")
-        logger.error(f"JSONified return: {jsonify({'results': results, 'response': response})}")
+        logger.info(f"Refined response: {response}")
+        logger.info(f"JSONified return: {jsonify({'results': results, 'response': response})}")
 
         return jsonify({"results": results, "response": response}), 200
     except Exception as e:

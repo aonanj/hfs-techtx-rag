@@ -136,7 +136,7 @@ def _init_chroma_client():
             tc = client.get_or_create_collection(name=test_coll_name)  # type: ignore
             tc.add(ids=["0"], metadatas=[{"t": "x"}], documents=["test"])
             client.delete_collection(name=test_coll_name)
-            _logger.error(f"Chroma connected with write access at {abs_path}")
+            _logger.info(f"Chroma connected with write access at {abs_path}")
             return client
         except Exception as e:
             msg = str(e).lower()
@@ -189,7 +189,7 @@ def _ensure_writable_caches():  # pragma: no cover (env specific)
                         f.write("ok")
                     os.remove(test_path)
                     os.environ["HOME"] = cand
-                    _logger.error(f"Reset HOME to writable directory: {cand}")
+                    _logger.info(f"Reset HOME to writable directory: {cand}")
                     current_home = cand
                     break
                 except Exception:  # continue trying fallbacks
@@ -224,7 +224,7 @@ def _init_collections():
         _chunks_collection = _client.get_or_create_collection(
             name="chunks"
         )
-        _logger.error("Successfully initialized ChromaDB collections.")
+        _logger.info("Successfully initialized ChromaDB collections.")
     except Exception as e:
         _logger.error(f"Failed to initialize collections: {e}")
         # Re-raise the exception to be handled by the application

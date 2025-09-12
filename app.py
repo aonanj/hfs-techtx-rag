@@ -43,7 +43,7 @@ def create_app():
                 else:
                     logger.error("Database reset failed - app may not function properly")
             except Exception as reset_e:
-                logger.error(f"Database reset failed: {reset_e}")
+                logger.info(f"Database reset failed: {reset_e}")
                 logger.error("App will continue but database functionality may be limited")
 
     return app

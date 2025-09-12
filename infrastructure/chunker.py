@@ -293,7 +293,7 @@ def chunk_doc(text: str, doc_id: int, max_chars: int = 1200, overlap: int = 150,
 
 
 	pages = _split_pages(text)
-	logger.error("Chunking doc_id=%s pages=%d (max_chars=%d overlap=%d)", doc_id, len(pages), max_chars, overlap)
+	logger.info("Chunking doc_id=%s pages=%d (max_chars=%d overlap=%d)", doc_id, len(pages), max_chars, overlap)
 	# Flatten paragraphs with page indices
 	para_with_pages: List[Tuple[int, str]] = []
 	for p_idx, page_text in enumerate(pages, start=1):
@@ -393,10 +393,9 @@ def chunk_doc(text: str, doc_id: int, max_chars: int = 1200, overlap: int = 150,
 			numbers_present=numbers_present,
 			definition_terms=definition_terms,
 		)
-		logger.error("Persisted chunk %s (pages %d-%d) for doc_id=%s", chunk_id, page_s, page_e, doc_id)
+		logger.info("Persisted chunk %s (pages %d-%d) for doc_id=%s", chunk_id, page_s, page_e, doc_id)
 
 		chunk_ids.append(chunk_id)
-		logger.error(f"Chunk {chunk_id} info: {new_chunk}")
 
 		chunk_metadata_records.append({
 			'id': chunk_id,

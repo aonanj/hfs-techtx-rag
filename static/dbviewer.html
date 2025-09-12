@@ -64,7 +64,7 @@
         .modal-title { font-size:1.2rem; color:#7ec8ff; }
         .close { color:#ccc; font-size:28px; font-weight:bold; cursor:pointer; }
         .close:hover { color:#fff; }
-        .modal-body { background:#222; border:1px solid #555; border-radius:8px; padding:15px; font-family:monospace; font-size:.8rem; white-space:pre-wrap; }
+    .modal-body { background:#222; border:1px solid #555; border-radius:8px; padding:15px; font-family:monospace; font-size:.8rem; white-space:pre-wrap; overflow-wrap:anywhere; word-break:break-word; }
         
         .tab-content { display:none; }
         .tab-content.active { display:block; }
@@ -76,6 +76,7 @@
         th.sortable:hover { background:#355064; }
         th.sortable.active { color:#7ec8ff; }
         .sort-indicator { opacity:.85; font-size:.7rem; margin-left:6px; }
+    .clickable { cursor:pointer; }
     </style>
 </head>
 <body>
@@ -364,9 +365,16 @@
                 columns.forEach(col => {
                     const value = chunk[col];
                     const { display, truncated, full } = truncateValue(value);
-                    const cls = truncated ? 'truncate' : '';
-                    const onClick = truncated ? `onclick="showModal('${esc(col)}', ${JSON.stringify(full).replace(/"/g, '&quot;')})"` : '';
-                    html += `<td class="${cls}" ${onClick}>${esc(display)}</td>`;
+                    let cls = truncated ? 'truncate' : '';
+                    let onClick = '';
+                    if (col === 'text') {
+                        // Always clickable for chunk text; show full content in modal, wrapped
+                        onClick = `onclick=\"showModal('text', ${JSON.stringify(full).replace(/\"/g, '&quot;')})\"`;
+                        cls = (cls ? cls + ' ' : '') + 'clickable';
+                    } else {
+                        onClick = truncated ? `onclick=\"showModal('${esc(col)}', ${JSON.stringify(full).replace(/\"/g, '&quot;')})\"` : '';
+                    }
+                    html += `<td class=\"${cls}\" ${onClick}>${esc(display)}</td>`;
                 });
                 html += '</tr>';
             });

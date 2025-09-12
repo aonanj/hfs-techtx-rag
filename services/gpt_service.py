@@ -66,7 +66,7 @@ Given the following user query and context from relevant documents, provide a co
             messages=messages,  # type: ignore
         )
         answer = response.choices[0].message.content
-        logger.error(f"OpenAI response: {answer}")
+        logger.info(f"OpenAI response: {answer}")
         if answer is None:
             raise ValueError("Received empty response from OpenAI.")
         return json.loads(answer)
