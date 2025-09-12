@@ -13,6 +13,8 @@ pinned: false
 
 A Flask-based Retrieval-Augmented Generation (RAG) application for document processing, embedding generation, and semantic search specific to technology transactions use cases in the legal domain.
 
+Available at: [tech-trans-rag](https://huggingface.co/spaces/phaethon-order/tech-trans-rag "Hugging Face Spaces: phaethon-order/tech-trans-rag")
+
 ## 💡 Features
 
 - **Document Processing**: Upload and process PDF, DOCX, and text files
