@@ -300,10 +300,11 @@
                             else {
                                 try {
                                     const parts = full.split('/');
-                                    rel = parts.slice(parts.indexOf('corpus_raw')+1).join('/');
+                                    rel = parts.slice(parts.indexOf('corpus_raw') + 1).join('/');
                                 } catch { rel = full.split('/').pop(); }
                             }
-                            const href = '/data/corpus_raw/' + encodeURI(rel);
+                            // Serve via backend: /api/<path:filename> (use /api/raw/<relative>)
+                            const href = '/api/raw/' + encodeURI(rel);
                             content = `<a class="view-source" href="${href}">${esc(display)}</a>`;
                         }
                         if (editing.rowDocId===String(r.doc_id) && editing.col===c) {

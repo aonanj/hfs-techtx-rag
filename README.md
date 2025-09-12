@@ -27,25 +27,27 @@ A Flask-based Retrieval-Augmented Generation (RAG) application for document proc
 ## 🏗️ Architecture
 
 ```
-├── app.py                 # Main Flask application
-├── config.py             # Configuration management
-├── requirements.txt      # Python dependencies
-├── Dockerfile           # Container configuration
-├── infrastructure/      # Core processing modules
-│   ├── chunker.py       # Document chunking logic
-│   ├── database.py      # ChromaDB interface
+├── app.py                     # Main Flask application
+├── config.py                  # Configuration management
+├── requirements.txt           # Python dependencies
+├── Dockerfile                 # Container configuration
+├── infrastructure/            # Core processing modules
+│   ├── chunker.py             # Document chunking logic
+│   ├── database.py            # ChromaDB interface
 │   ├── document_processor.py  # File processing
-│   ├── embeddings.py    # Embedding generation
-│   ├── logger.py        # Logging configuration
-│   └── vector_search.py # Search functionality
-├── routes/              # Flask route handlers
-│   ├── api.py          # REST API endpoints
-│   └── web.py          # Web interface routes
-└── static/             # Frontend HTML templates
-    ├── index.html      # Main chat interface
-    ├── upload.html     # Document upload page
-    ├── chunks.html     # Document chunks viewer
-    └── manifest.html   # Document manifest viewer
+│   ├── embeddings.py          # Embedding generation
+│   ├── logger.py              # Logging configuration
+│   └── vector_search.py       # Search functionality
+├── routes/                    # Flask route handlers
+│   ├── api.py                 # REST API endpoints
+│   └── web.py                 # Web interface routes
+├── static/                    # Frontend HTML templates
+│   ├── index.html             # Main chat interface
+│   ├── upload.html            # Document upload page
+│   ├── chunks.html            # Document chunks viewer
+│   └── manifest.html          # Document manifest viewer
+└── services/                  # GPT services
+    └── gpt_service.py         # Query response enrichment
 ```
 
 ## 🛠️ Quick Start
@@ -113,15 +115,23 @@ A Flask-based Retrieval-Augmented Generation (RAG) application for document proc
 ## 📚 API Endpoints
 
 ### Document Management
-- `POST /api/upload` - Upload and process documents
-- `GET /api/manifest` - List all processed documents
-- `GET /api/chunks` - View document chunks
-- `DELETE /api/reset` - Reset database (requires password)
+- `POST /api/upload` — Upload and process documents
+- `GET /api/manifest` — List processed documents (document manifest)
+- `PATCH /api/manifest` — Update manifest fields
+- `DELETE /api/manifest` — Delete from manifest
+- `GET /api/documents` — List documents (DB viewer optimized)
+- `GET /api/chunks?doc_id=<id>` — List chunks for a given document ID
+- `GET /api/chunks/all` — List chunks across all documents (paginated in UI)
+- `GET /api/chunks/jsonl` — Download chunks as JSONL
+- `PATCH /api/chunks` — Update chunk metadata (e.g., flags or annotations)
 
-### Search & Chat
-- `POST /api/search` - Perform semantic search
-- `POST /api/chat` - Chat with document context
-- `GET /api/health` - Health check endpoint
+### Search & Health
+- `POST /api/query` — Perform semantic search and response generation
+- `GET /api/healthz` — Health check endpoint
+
+### Admin
+- `POST /api/reset` — Reset ChromaDB and reinitialize collections
+   - If `RESET_PASSWORD` is set, provide `{"password": "<value>"}` in the JSON body or pass header `X-Reset-Password: <value>`
 
 ## ⚙️ Configuration
 
@@ -136,6 +146,11 @@ A Flask-based Retrieval-Augmented Generation (RAG) application for document proc
 | `MAX_CONTEXT_LENGTH` | Maximum context length for chat | `4000` |
 | `TOP_K_RESULTS` | Number of search results | `10` |
 | `RESET_PASSWORD` | Password for reset operations | None |
+
+### API Field Notes
+
+- Chunk responses include rich metadata when available: `section_number`, `section_title`, `clause_type`, `page_start`, `page_end`, `path`, `numbers_present`, `definition_terms`, along with operational fields like `chunk_index`, `token_count`, `tok_ver`, `seg_ver`, and `embedding_count`.
+- When querying by `doc_id` (`GET /api/chunks?doc_id=<id>`), the response shape matches the global chunks listing so UIs can render consistently.
 
 ### Data Persistence
 
@@ -161,6 +176,39 @@ python app.py
 
 The Reset button in the web interface will prompt for this password before allowing database wipes.
 
+### Try the API quickly
+
+Optional cURL snippets you can run locally:
+
+```bash
+# Health
+curl -s http://localhost:5000/api/healthz | jq
+
+# Manifest
+curl -s http://localhost:5000/api/manifest | jq
+
+# Chunks for a document (replace 1 with a real ID from manifest)
+curl -s "http://localhost:5000/api/chunks?doc_id=1" | jq '.chunks[0]'
+
+# Query with semantic search
+curl -s -X POST http://localhost:5000/api/query \
+   -H 'Content-Type: application/json' \
+   -d '{"query": "What does the indemnity clause cover?", "top_k": 5}' | jq
+
+# Admin reset (if password required)
+
+# Update a chunk's metadata (example: set clause_type)
+curl -s -X PATCH http://localhost:5000/api/chunks \
+   -H 'Content-Type: application/json' \
+   -d '{"chunk_id": 123, "updates": {"clause_type": "Indemnification"}}' | jq
+
+# Get all chunks (paginated)
+curl -s "http://localhost:5000/api/chunks/all?limit=200&offset=0" | jq '.chunks | length'
+curl -s -X POST http://localhost:5000/api/reset \
+   -H 'Content-Type: application/json' \
+   -d '{"password": "change-me"}' | jq
+```
+
 ## 🛠️ Development
 
 ### Project Structure
@@ -175,6 +223,16 @@ The Reset button in the web interface will prompt for this password before allow
 - **Embeddings**: Hugging Face model integration for vector generation
 - **Vector Search**: ChromaDB-based semantic search capabilities
 - **Database**: Persistent storage with automatic initialization and reset capabilities
+
+### Troubleshooting
+
+- Health endpoint returns 404: Ensure you are calling `/api/healthz` (not `/api/health`).
+- No chunks returned for `doc_id`: Verify the document ID from `/api/manifest`. Chunks are only created after successful processing.
+- Reset not permitted: Provide the correct password in JSON body (`{"password": "..."}`) or `X-Reset-Password` header and ensure `RESET_PASSWORD` is set in the server environment.
+- ChromaDB file errors on macOS/Linux: Confirm your Docker volume mount maps to a writable host path: `-v $(pwd)/data:/data`.
+- Missing API keys: Set `OPENAI_API_KEY` (and optional `CLAUDE_KEY`) before starting the app.
+- JSONL not found: `/api/chunks/jsonl` returns empty if `/data/chunks/chunks.jsonl` has not been generated yet by the chunker; use `/api/chunks/all` as a fallback.
+- Large uploads: For PDFs with many pages, processing can take time; watch the server logs for progress and ensure model caches under `/data/cache` are writable.
 
 ## 🏴‍☠️ License
 

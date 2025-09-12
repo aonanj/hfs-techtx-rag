@@ -805,12 +805,14 @@ def manifest_delete():
     return jsonify({"ok": True}), 200
 
 
-@api_bp.route("/raw/<path:subpath>", methods=["GET"])
-def serve_raw(subpath: str):
-    # Serve files from /data/corpus_raw for clicking source_path links in UI
-    # To use, ensure source_path links are constructed as /api/raw/<relative to RAW_PREFIX>
-    abs_path = os.path.join(RAW_PREFIX, "")
-    return send_from_directory(abs_path, subpath, as_attachment=False)
+@api_bp.route("/raw/<path:filename>", methods=["GET"])
+def serve_raw(filename: str):
+    """Serve files from /data/corpus_raw for clicking source_path links in UI.
+
+    Construct links as: /api/raw/<relative-to-RAW_PREFIX>
+    Example: if source_path is /data/corpus_raw/123.pdf, link to /api/raw/123.pdf
+    """
+    return send_from_directory(RAW_PREFIX, filename)
 
 
 @api_bp.route("/dbviewer/documents", methods=["GET"])
