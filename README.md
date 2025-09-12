@@ -250,4 +250,4 @@ This project is licensed under the MIT License - see the [LICENSE](LICENSE) file
 
 ## 📞 Contact
 
-For issues and questions, please use the GitHub issue tracker.
+For issues and questions, please contact [phaethon@phaethon.llc](mailto:phaethon@phaethon.llc). 

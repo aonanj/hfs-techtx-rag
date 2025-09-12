@@ -226,7 +226,6 @@ def get_chunk_info(text: str, chunk_text: str) -> Dict[str, Optional[str]]:
         )
 
         response = response.output_text if response else ""
-        logger.info(f"AI chunk raw response: {response}")
         candidate = (response or [])
         logger.info(f"AI chunk response: {candidate}")
         expected_keys = [
@@ -409,8 +408,8 @@ def chunk_doc(text: str, doc_id: int, max_chars: int = 1200, overlap: int = 150,
 			'definition_terms': definition_terms,
 			'text': chunk_text,
 			'metadata': None,
-			'prev_id': prev_idx,  # fill later
-			'next_id': next_idx,  # fill later
+			'prev_id': prev_idx,  
+			'next_id': next_idx,  
 		})
 		logger.info("Chunk metadata record: %s", chunk_metadata_records[-1])
 
@@ -447,6 +446,7 @@ def chunk_doc(text: str, doc_id: int, max_chars: int = 1200, overlap: int = 150,
 				else:
 					# Fallback: stringify lists/dicts or other types
 					out[k] = str(v)
+			logger.info("Chroma-safe metadata: %s", out)
 			return out
 
 		collection.add(
