@@ -291,6 +291,7 @@
                     });
                 });
                 attachEditing();
+                focusEditingCell();
         }
 
         function fetchManifestAll(){
@@ -317,10 +318,13 @@
         lastPageBtn.addEventListener('click', () => { const rows = filteredRows(); currentPage = Math.max(1, Math.ceil(rows.length / PAGE_SIZE)); renderTable(); });
 
         function attachEditing(){
-            // cell editing
-            manifestTableWrapper.querySelectorAll('td.editable').forEach(td => {
-                td.addEventListener('click', () => beginCellEdit(td));
-            });
+            // Robust click-to-edit via delegation; overwrite each render to avoid duplicates
+            manifestTableWrapper.onclick = (ev) => {
+                const td = ev.target.closest('td.editable');
+                if (td && manifestTableWrapper.contains(td)) {
+                    beginCellEdit(td);
+                }
+            };
             // delete handlers
             manifestTableWrapper.querySelectorAll('button.delete').forEach(btn => {
                 btn.addEventListener('click', () => doDelete(btn.getAttribute('data-doc')));
@@ -334,6 +338,23 @@
                 if (confirmBtn) confirmBtn.addEventListener('click', () => confirmCellEdit(rid));
                 if (cancelBtn) cancelBtn.addEventListener('click', cancelCellEdit);
             });
+        }
+
+        function focusEditingCell(){
+            if (!editing.rowDocId || !editing.col) return;
+            const row = manifestTableWrapper.querySelector(`tr[data-doc="${CSS.escape(editing.rowDocId)}"]`);
+            if (!row) return;
+            const field = row.querySelector(`td[data-col="${CSS.escape(editing.col)}"] input`);
+            if (!field) return;
+            field.focus();
+            if (field.setSelectionRange && typeof field.value === 'string') {
+                const len = field.value.length;
+                try { field.setSelectionRange(len, len); } catch {}
+            }
+            field.addEventListener('keydown', (ev) => {
+                if (ev.key === 'Escape') { ev.preventDefault(); cancelCellEdit(); }
+                else if (ev.key === 'Enter') { ev.preventDefault(); confirmCellEdit(editing.rowDocId); }
+            }, { once: true });
         }
 
         function beginCellEdit(td){

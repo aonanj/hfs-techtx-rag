@@ -51,9 +51,7 @@ def allowed_file(filename: str) -> bool:
 @api_bp.route("/upload", methods=["POST"])
 def add_doc():
     """Upload one document, extract text, persist metadata, and schedule chunking."""
-    delete_document(7)
-    logger.error("DEBUG: Deleted document with doc_id=7 for testing purposes")
-    
+
     if "file" not in request.files:
         return jsonify({"error": "No file part"}), 400
     file = request.files["file"]
