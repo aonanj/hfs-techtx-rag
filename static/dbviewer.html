@@ -70,6 +70,12 @@
         .tab-content.active { display:block; }
         .tab-header { display:flex; justify-content:space-between; align-items:center; margin-bottom:15px; gap:10px; flex-wrap:wrap; }
         .tab-info { font-size:.65rem; letter-spacing:1px; color:#ccc; }
+
+        /* Sorting styles */
+        th.sortable { cursor:pointer; user-select:none; }
+        th.sortable:hover { background:#355064; }
+        th.sortable.active { color:#7ec8ff; }
+        .sort-indicator { opacity:.85; font-size:.7rem; margin-left:6px; }
     </style>
 </head>
 <body>
@@ -166,6 +172,13 @@
         const chunksPageEl = document.getElementById('chunksPage');
         const chunksCountEl = document.getElementById('chunksCount');
 
+    // Sorting state (default: doc_id ascending)
+    let documentsSort = { key: 'doc_id', dir: 'asc' };
+    let chunksSort = { key: 'doc_id', dir: 'asc' };
+    // Cache last-loaded page data for re-render on sort without refetch
+    let lastDocumentsData = null;
+    let lastChunksData = null;
+
         function esc(v) {
             return String(v ?? '').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');
         }
@@ -236,6 +249,7 @@
         chunksTab.addEventListener('click', () => switchTab('chunks'));
 
         function renderDocumentsTable(data) {
+            if (!data) return;
             const { documents, page, count } = data;
             
             documentsPageEl.textContent = page;
@@ -253,11 +267,24 @@
                 'created_at', 'chunk_count', 'sha256'
             ];
 
+            // Sort rows client-side by current sort state
+            const sortedDocs = [...documents].sort((a, b) => {
+                const key = documentsSort.key;
+                const cmp = compareValues(a[key], b[key], key);
+                if (cmp !== 0) return documentsSort.dir === 'asc' ? cmp : -cmp;
+                // stable tie-breaker by doc_id
+                return compareValues(a['doc_id'], b['doc_id'], 'doc_id');
+            });
+
             let html = '<table class="data-table"><thead><tr>';
-            html += columns.map(col => `<th>${esc(col)}</th>`).join('');
+            html += columns.map(col => {
+                const active = documentsSort.key === col;
+                const arrow = active ? (documentsSort.dir === 'asc' ? '▲' : '▼') : '';
+                return `<th class="sortable ${active ? 'active' : ''}" onclick="setSort('documents','${col}')">${esc(col)}${arrow ? ` <span class='sort-indicator'>${arrow}</span>` : ''}</th>`;
+            }).join('');
             html += '</tr></thead><tbody>';
 
-            documents.forEach(doc => {
+            sortedDocs.forEach(doc => {
                 html += '<tr>';
                 columns.forEach(col => {
                     const value = doc[col];
@@ -296,6 +323,7 @@
         }
 
         function renderChunksTable(data) {
+            if (!data) return;
             const { chunks, page, count } = data;
             
             chunksPageEl.textContent = page;
@@ -314,11 +342,24 @@
                 'tok_ver', 'seg_ver', 'embedding_count'
             ];
 
+            // Sort rows client-side by current sort state
+            const sortedChunks = [...chunks].sort((a, b) => {
+                const key = chunksSort.key;
+                const cmp = compareValues(a[key], b[key], key);
+                if (cmp !== 0) return chunksSort.dir === 'asc' ? cmp : -cmp;
+                // stable tie-breaker by chunk_id
+                return compareValues(a['chunk_id'], b['chunk_id'], 'chunk_id');
+            });
+
             let html = '<table class="data-table"><thead><tr>';
-            html += columns.map(col => `<th>${esc(col)}</th>`).join('');
+            html += columns.map(col => {
+                const active = chunksSort.key === col;
+                const arrow = active ? (chunksSort.dir === 'asc' ? '▲' : '▼') : '';
+                return `<th class="sortable ${active ? 'active' : ''}" onclick="setSort('chunks','${col}')">${esc(col)}${arrow ? ` <span class='sort-indicator'>${arrow}</span>` : ''}</th>`;
+            }).join('');
             html += '</tr></thead><tbody>';
 
-            chunks.forEach(chunk => {
+            sortedChunks.forEach(chunk => {
                 html += '<tr>';
                 columns.forEach(col => {
                     const value = chunk[col];
@@ -335,6 +376,54 @@
 
             // Render pagination
             renderPagination('chunks', data);
+        }
+
+        // Change sort key/direction and re-render current table
+        function setSort(type, key) {
+            if (type === 'documents') {
+                if (documentsSort.key === key) {
+                    documentsSort.dir = documentsSort.dir === 'asc' ? 'desc' : 'asc';
+                } else {
+                    documentsSort = { key, dir: 'asc' };
+                }
+                renderDocumentsTable(lastDocumentsData);
+            } else if (type === 'chunks') {
+                if (chunksSort.key === key) {
+                    chunksSort.dir = chunksSort.dir === 'asc' ? 'desc' : 'asc';
+                } else {
+                    chunksSort = { key, dir: 'asc' };
+                }
+                renderChunksTable(lastChunksData);
+            }
+        }
+
+        // Generic value comparator supporting numbers, dates, booleans, and strings
+        function compareValues(a, b, key) {
+            const isNullish = (v) => v === null || v === undefined || v === '';
+            const aN = isNullish(a);
+            const bN = isNullish(b);
+            if (aN && bN) return 0;
+            if (aN) return 1; // nullish last
+            if (bN) return -1;
+
+            // Date-aware for common date fields
+            if (key === 'created_at' || key === 'effective_date') {
+                const ta = Date.parse(a);
+                const tb = Date.parse(b);
+                const aValid = !Number.isNaN(ta);
+                const bValid = !Number.isNaN(tb);
+                if (aValid && bValid) return ta - tb;
+            }
+
+            const aNum = typeof a === 'number' || (typeof a === 'string' && a.trim() !== '' && !isNaN(a));
+            const bNum = typeof b === 'number' || (typeof b === 'string' && b.trim() !== '' && !isNaN(b));
+            if (aNum && bNum) return Number(a) - Number(b);
+
+            if (typeof a === 'boolean' && typeof b === 'boolean') {
+                return (a === b) ? 0 : (a ? 1 : -1);
+            }
+
+            return String(a).toLowerCase().localeCompare(String(b).toLowerCase());
         }
 
         function renderPagination(type, data) {
@@ -384,7 +473,8 @@
                         documentsTableWrapper.innerHTML = '<div class="empty">Error loading documents.</div>';
                         return;
                     }
-                    renderDocumentsTable(data);
+                    lastDocumentsData = data;
+                    renderDocumentsTable(lastDocumentsData);
                     setStatus(data.count ? `Loaded ${data.count} documents.` : 'No documents found.');
                 })
                 .catch(error => {
@@ -403,7 +493,8 @@
                         chunksTableWrapper.innerHTML = '<div class="empty">Error loading chunks.</div>';
                         return;
                     }
-                    renderChunksTable(data);
+                    lastChunksData = data;
+                    renderChunksTable(lastChunksData);
                     setStatus(data.count ? `Loaded ${data.count} chunks.` : 'No chunks found.');
                 })
                 .catch(error => {

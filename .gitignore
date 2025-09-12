@@ -10,3 +10,4 @@ test_data.py
 data/
 .instructions/
 copilot-instructions.md
+data_level0.bin
