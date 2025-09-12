@@ -304,8 +304,8 @@
                                 } catch { rel = full.split('/').pop(); }
                             }
                             // Serve via backend: /api/<path:filename> (use /api/raw/<relative>)
-                            const href = '/api/raw/' + encodeURI(rel);
-                            content = `<a class="view-source" href="${href}">${esc(display)}</a>`;
+                                const href = '/api/raw/' + encodeURI(rel);
+                                content = `<a class="view-source" href="${href}" download>${esc(display)}</a>`;
                         }
                         if (editing.rowDocId===String(r.doc_id) && editing.col===c) {
                             content = `<input type="text" style="width:100%;background:#16232d;border:1px solid #4a6578;color:#fff;font-size:.65rem;padding:4px 6px;border-radius:4px;" value="${esc(full)}" />`;
@@ -355,10 +355,7 @@
             manifestTableWrapper.onclick = (ev) => {
                 const link = ev.target.closest('a.view-source');
                 if (link && manifestTableWrapper.contains(link)) {
-                    ev.preventDefault();
-                    const href = link.getAttribute('href');
-                    const title = link.textContent || href;
-                    openViewer(href, title);
+                    // Let the browser handle it (download)
                     return;
                 }
                 const td = ev.target.closest('td.editable');

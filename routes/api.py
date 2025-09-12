@@ -812,7 +812,7 @@ def serve_raw(filename: str):
     Construct links as: /api/raw/<relative-to-RAW_PREFIX>
     Example: if source_path is /data/corpus_raw/123.pdf, link to /api/raw/123.pdf
     """
-    return send_from_directory(RAW_PREFIX, filename)
+    return send_from_directory(RAW_PREFIX, filename, as_attachment=True)
 
 
 @api_bp.route("/dbviewer/documents", methods=["GET"])
