@@ -1,7 +1,6 @@
 #!/usr/bin/env sh
 set -e
 
-# choose a canonical persistent path
 : "${PERSIST_DIRECTORY:=/data/chroma_db}"
 mkdir -p "$PERSIST_DIRECTORY"
 

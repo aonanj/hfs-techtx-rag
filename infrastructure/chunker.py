@@ -5,7 +5,7 @@ Currently provides a single public helper `chunk_doc` that:
 1. Reads a cleaned `.txt` file (already extracted & normalized elsewhere).
 2. Splits it into pages (form-feed ``\f`` boundaries) and paragraphs.
 3. Aggregates paragraphs into size‑bounded chunks with optional character overlap.
-4. Persists each chunk using `infrastructure.datab    path = os.path.join(CHUNKS_DIR, "chunks.jsonl")
+4. Persists each chunk using `infrastructure.database    path = os.path.join(CHUNKS_DIR, "chunks.jsonl")
 
     try:
         with open(path, "a", encoding="utf-8") as f:
@@ -45,7 +45,7 @@ from .embeddings import get_chroma_collection
 from .database import add_chunk, get_max_chunk_id
 
 
-try:  # Avoid hard import failure if heavy deps (openai, fitz) not installed during chunk-only operations
+try:  
 	from .document_processor import normalize  # type: ignore
 except Exception:  # pragma: no cover - fallback path
 	def normalize(s: str) -> str:  # minimal fallback

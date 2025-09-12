@@ -169,15 +169,37 @@ def get_chunks():
         return jsonify({"error": "doc_id required"}), 400
 
     chunks = get_chunks_for_doc(doc_id)
-    out = [{
-        "chunk_id": c.chunk_id,
-        "doc_id": c.doc_id,
-        "chunk_index": c.chunk_index,
-        "token_count": c.token_count,
-        "tok_ver": c.tok_ver,
-        "seg_ver": c.seg_ver,
-        "text": str(getattr(c, "text", "") or ""),
-    } for c in chunks]
+    if not chunks:
+        return jsonify({"doc_id": doc_id, "count": 0, "chunks": []}), 200
+
+    # Populate embedding counts to align with global chunks view
+    try:
+        chunk_ids = [c.chunk_id for c in chunks]
+        embedding_counts = get_embedding_counts_for_chunks(chunk_ids)
+    except Exception:
+        embedding_counts = {}
+
+    out = []
+    for c in chunks:
+        out.append({
+            "chunk_id": c.chunk_id,
+            "doc_id": c.doc_id,
+            "chunk_index": c.chunk_index,
+            "token_count": c.token_count,
+            "tok_ver": c.tok_ver,
+            "seg_ver": c.seg_ver,
+            "text": str(getattr(c, 'text', '') or ''),
+            "page_start": c.page_start,
+            "page_end": c.page_end,
+            "section_number": c.section_number,
+            "section_title": c.section_title,
+            "clause_type": c.clause_type,
+            "path": c.path,
+            "numbers_present": c.numbers_present,
+            "definition_terms": c.definition_terms,
+            "embedding_count": embedding_counts.get(c.chunk_id, 0),
+        })
+
     return jsonify({"doc_id": doc_id, "count": len(out), "chunks": out}), 200
 
 @api_bp.route("/documents", methods=["GET"])

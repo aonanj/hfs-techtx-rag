@@ -89,6 +89,16 @@
     .row-actions button { padding:4px 10px; font-size:.6rem; background:#355064; color:#cfe9ff; }
     .row-actions button.confirm { background:#4caf50; color:#fff; }
     .row-actions button.cancel { background:#d9534f; color:#fff; }
+    /* Overlay viewer */
+    .overlay-backdrop { position:fixed; inset:0; background:rgba(0,0,0,.6); display:none; align-items:center; justify-content:center; z-index:9999; }
+    .overlay-backdrop.show { display:flex; }
+    .overlay-modal { width:min(1000px,92vw); height:min(80vh,900px); background:#0e1b24; border:1px solid #2c3a44; border-radius:14px; box-shadow:0 24px 70px rgba(0,0,0,.55); display:flex; flex-direction:column; overflow:hidden; }
+    .overlay-header { display:flex; align-items:center; justify-content:space-between; padding:10px 14px; background:#142433; border-bottom:1px solid #2c3a44; }
+    .overlay-header h3 { margin:0; font-size:.9rem; font-weight:600; color:#cfe9ff; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
+    .overlay-header button { padding:6px 12px; font-size:.75rem; background:#355064; color:#cfe9ff; border:none; border-radius:8px; cursor:pointer; }
+    .overlay-header button:hover { background:#3f5f78; }
+    .overlay-body { flex:1; padding:10px; background:#0e1b24; }
+    #viewerText { width:100%; height:100%; resize:none; background:#111a22; color:#cfe9ff; border:1px solid #2c3a44; border-radius:8px; padding:10px; font-family:Consolas,Monaco,monospace; font-size:.8rem; line-height:1.4; }
     </style>
 </head>
 <body>
@@ -132,6 +142,22 @@
         </a>
     </div>
 
+    <!-- Inline overlay for viewing raw document content -->
+    <div id="viewerOverlay" class="overlay-backdrop" aria-hidden="true">
+        <div class="overlay-modal" role="dialog" aria-modal="true" aria-labelledby="viewerTitle">
+            <div class="overlay-header">
+                <h3 id="viewerTitle">Document</h3>
+                <div style="display:flex; gap:8px;">
+                    <button id="viewerCopy" title="Copy to clipboard">Copy</button>
+                    <button id="viewerClose" title="Close">Close</button>
+                </div>
+            </div>
+            <div class="overlay-body">
+                <textarea id="viewerText" readonly>Loading…</textarea>
+            </div>
+        </div>
+    </div>
+
     <script>
         const filterForm = document.getElementById('filterForm');
         const filterInput = document.getElementById('filter');
@@ -140,6 +166,12 @@
         const clearBtn = document.getElementById('clearBtn');
         const manifestTableWrapper = document.getElementById('manifestTableWrapper');
         const rowCountEl = document.getElementById('rowCount');
+        // Overlay elements
+        const overlayEl = document.getElementById('viewerOverlay');
+        const viewerTitleEl = document.getElementById('viewerTitle');
+        const viewerTextEl = document.getElementById('viewerText');
+        const viewerCloseBtn = document.getElementById('viewerClose');
+        const viewerCopyBtn = document.getElementById('viewerCopy');
     let manifestRows = [];
         const PAGE_SIZE = 25;
         let currentPage = 1;
@@ -271,8 +303,8 @@
                                     rel = parts.slice(parts.indexOf('corpus_raw')+1).join('/');
                                 } catch { rel = full.split('/').pop(); }
                             }
-                            const href = '/api/raw/' + encodeURI(rel);
-                            content = `<a href="${href}" target="_blank" rel="noopener noreferrer">${esc(display)}</a>`;
+                            const href = '/data/corpus_raw/' + encodeURI(rel);
+                            content = `<a class="view-source" href="${href}">${esc(display)}</a>`;
                         }
                         if (editing.rowDocId===String(r.doc_id) && editing.col===c) {
                             content = `<input type="text" style="width:100%;background:#16232d;border:1px solid #4a6578;color:#fff;font-size:.65rem;padding:4px 6px;border-radius:4px;" value="${esc(full)}" />`;
@@ -318,8 +350,16 @@
         lastPageBtn.addEventListener('click', () => { const rows = filteredRows(); currentPage = Math.max(1, Math.ceil(rows.length / PAGE_SIZE)); renderTable(); });
 
         function attachEditing(){
-            // Robust click-to-edit via delegation; overwrite each render to avoid duplicates
+            // Robust click delegation: first handle source_path link to open overlay, then cell editing
             manifestTableWrapper.onclick = (ev) => {
+                const link = ev.target.closest('a.view-source');
+                if (link && manifestTableWrapper.contains(link)) {
+                    ev.preventDefault();
+                    const href = link.getAttribute('href');
+                    const title = link.textContent || href;
+                    openViewer(href, title);
+                    return;
+                }
                 const td = ev.target.closest('td.editable');
                 if (td && manifestTableWrapper.contains(td)) {
                     beginCellEdit(td);
@@ -339,6 +379,25 @@
                 if (cancelBtn) cancelBtn.addEventListener('click', cancelCellEdit);
             });
         }
+
+        // Overlay helpers
+        function openViewer(url, title){
+            viewerTitleEl.textContent = title || url;
+            viewerTextEl.value = 'Loading…';
+            overlayEl.classList.add('show');
+            fetch(url)
+              .then(r => { if(!r.ok) throw new Error(`${r.status} ${r.statusText}`); return r.text(); })
+              .then(txt => { viewerTextEl.value = txt; })
+              .catch(err => { viewerTextEl.value = `Error loading document: ${err.message}`; });
+        }
+        function closeViewer(){ overlayEl.classList.remove('show'); }
+        viewerCloseBtn.addEventListener('click', closeViewer);
+        viewerCopyBtn.addEventListener('click', () => {
+            try { navigator.clipboard.writeText(viewerTextEl.value || ''); setStatus('Copied to clipboard.'); }
+            catch { /* no-op */ }
+        });
+        overlayEl.addEventListener('click', (ev) => { if (ev.target === overlayEl) closeViewer(); });
+        document.addEventListener('keydown', (ev) => { if (ev.key === 'Escape' && overlayEl.classList.contains('show')) closeViewer(); });
 
         function focusEditingCell(){
             if (!editing.rowDocId || !editing.col) return;

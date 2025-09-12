@@ -440,7 +440,7 @@ def add_document(*, sha256, title=None, source_path=None, doc_type=None, jurisdi
     max_id = 0
     if all_docs['ids']:
         max_id = max([int(i) for i in all_docs['ids']])
-    new_doc_id = 7 ##max_id + 1
+    new_doc_id = max_id + 1
 
     metadata = {
         "sha256": sha256, "title": title, "source_path": source_path, "doc_type": doc_type,

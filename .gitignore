@@ -8,3 +8,5 @@ tech-trans-rag/
 chroma_db/
 test_data.py
 data/
+.github/
+copilot-instructions.md

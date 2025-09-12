@@ -35,7 +35,6 @@ def create_app():
         try:
             db.init_db()
         except Exception as e:
-            # Log the error but try to continue with a database reset
             logger.error(f"Database initialization failed: {e}")
             logger.info("Attempting to reset database...")
             try:
