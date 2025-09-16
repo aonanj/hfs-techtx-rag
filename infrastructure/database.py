@@ -680,8 +680,6 @@ def get_embedding_counts_for_chunks(chunk_ids: list[int]) -> dict[int, int]:
 
     return embedding_counts
 
-
-
 def delete_document(doc_id: int):
     chunks_to_delete = _chunks_collection.get(where={"doc_id": doc_id})
     if chunks_to_delete['ids']:
