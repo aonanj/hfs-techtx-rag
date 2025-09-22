@@ -69,11 +69,11 @@ Available at: [tech-trans-rag](https://huggingface.co/spaces/phaethon-order/tech
    CLAUDE_KEY=your_claude_api_key_here
 
    # Optional Configuration
-   EMBEDDING_MODEL=sentence-transformers/all-MiniLM-L6-v2
-   CHAT_MODEL=gpt-3.5-turbo
+   EMBEDDING_MODEL=text-embedding-3-small
+   CHAT_MODEL=gpt-5
    OPENAI_BASE_URL=https://api.openai.com/v1
    MAX_CONTEXT_LENGTH=4000
-   TOP_K_RESULTS=10
+   TOP_K_RESULTS=5
    MAX_QUERY_LENGTH=1000
    REQUEST_TIMEOUT=30
    SECRET_KEY=your_secret_key_here
@@ -143,10 +143,10 @@ Available at: [tech-trans-rag](https://huggingface.co/spaces/phaethon-order/tech
 |----------|-------------|---------|
 | `OPENAI_API_KEY` | OpenAI API key for chat models | Required |
 | `CLAUDE_KEY` | Anthropic Claude API key | Optional |
-| `EMBEDDING_MODEL` | Hugging Face embedding model | `sentence-transformers/all-MiniLM-L6-v2` |
-| `CHAT_MODEL` | OpenAI chat model | `gpt-3.5-turbo` |
+| `EMBEDDING_MODEL` | Hugging Face embedding model | `text-embedding-3-small` |
+| `CHAT_MODEL` | OpenAI chat model | `gpt-5` |
 | `MAX_CONTEXT_LENGTH` | Maximum context length for chat | `4000` |
-| `TOP_K_RESULTS` | Number of search results | `10` |
+| `TOP_K_RESULTS` | Number of search results | `5` |
 | `RESET_PASSWORD` | Password for reset operations | None |
 
 ### API Field Notes
