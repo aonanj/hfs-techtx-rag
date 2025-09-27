@@ -550,6 +550,7 @@ def query():
             for n in neighbors:
                 val = n.get("id") if isinstance(n, dict) else None
                 if val is None:
+                    logger.warning("Failed to extract chunk_id from neighbor: %s", n)
                     continue
                 try:
                     cid = int(val)
@@ -590,6 +591,7 @@ def query():
                     continue
                 chunk = chunk_map.get(cid)
                 if not chunk:
+                    logger.warning("Failed to find chunk in map: %d", cid)
                     continue
                 doc_info = {}
                 if getattr(chunk, "document", None):
