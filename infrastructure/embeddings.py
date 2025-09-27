@@ -92,6 +92,7 @@ def generate_embeddings(
     if not client:
         return []
 
+    logger.info("Generating embeddings for %d texts using model %s", len(texts), model)
     attempt = 0
     while True:
         try:
