@@ -269,9 +269,11 @@ def list_all_chunks():
     path, numbers_present, definition_terms, embedding_count.
     """
     try:
+        logger.info("Listing all chunks with pagination")
         limit = int(request.args.get("limit", 200))
         offset = int(request.args.get("offset", 0))
     except ValueError:
+        logger.error("Invalid pagination parameters")
         return jsonify({"error": "invalid pagination"}), 400
     limit = max(1, min(limit, 500))
     offset = max(0, offset)
@@ -323,9 +325,11 @@ def list_chunks_from_jsonl():
     rows: list[dict] = []
 
     if not os.path.exists(path):
+        logger.warning("Chunks file not found: %s", path)
         return jsonify({"chunks": [], "count": 0}), 200
 
     try:
+        logger.info("Reading chunks from %s", path)
         with open(path, "r", encoding="utf-8") as f:
             content = f.read()
     except Exception as e:
@@ -350,6 +354,7 @@ def list_chunks_from_jsonl():
             parsed_ok = False
 
     if not parsed_ok and content_stripped:
+        logger.info("Attempting to parse chunks with streaming JSON decoder")
         try:
             dec = json.JSONDecoder()
             s = content_stripped
@@ -371,9 +376,11 @@ def list_chunks_from_jsonl():
                 rows = out
                 parsed_ok = True
         except Exception:
+            logger.warning("Failed to parse chunks with streaming JSON decoder")
             parsed_ok = False
 
     if not parsed_ok:
+        logger.warning("Failed to parse chunks from %s", path)
         # Fallback: line-by-line JSONL
         rows = []
         for line in (content.splitlines() if content else []):
@@ -387,10 +394,12 @@ def list_chunks_from_jsonl():
                 elif isinstance(obj, dict):
                     rows.append(obj)
             except Exception:
+                logger.warning("Failed to parse line in chunks from %s", path)
                 # tolerate malformed lines
                 continue
 
     if not rows:
+        logger.info("No chunk records found in %s", path)
         return jsonify({"chunks": [], "count": 0}), 200
 
     # Normalize shape and collect IDs for embedding counts
@@ -399,10 +408,13 @@ def list_chunks_from_jsonl():
     for r in rows:
         cid = r.get("chunk_id") or r.get("id")
         try:
+            logger.debug("Processing chunk_id: %s", cid)
             cid_int = int(cid) if cid is not None else None
         except Exception:
+            logger.warning("Failed to process chunk_id: %s", cid)
             cid_int = None
         if cid_int is not None:
+            logger.debug("Processed chunk_id: %s", cid_int)
             chunk_ids.append(cid_int)
         normalized.append({
             "chunk_id": cid_int,
@@ -449,14 +461,17 @@ def update_chunks():
     updates = payload.get("updates", {})
     
     if not chunk_id:
+        logger.warning("chunk_id required")
         return jsonify({"error": "chunk_id required"}), 400
     
     try:
         chunk_id = int(chunk_id)
     except (ValueError, TypeError):
+        logger.warning("invalid chunk_id: %s", chunk_id)
         return jsonify({"error": "invalid chunk_id"}), 400
     
     if not updates or not isinstance(updates, dict):
+        logger.warning("updates dict required")
         return jsonify({"error": "updates dict required"}), 400
     
     logger.info("Updating chunk %d with updates: %s", chunk_id, updates)
@@ -464,6 +479,7 @@ def update_chunks():
     try:
         updated_chunk = update_chunk(chunk_id, updates)
         if not updated_chunk:
+            logger.warning("chunk not found: %d", chunk_id)
             return jsonify({"error": "chunk not found"}), 404
         
         # If text was updated, we should regenerate the embedding using ChromaDB
@@ -471,6 +487,7 @@ def update_chunks():
             from infrastructure.embeddings import get_chroma_collection
             
             try:
+                logger.info("Regenerating embedding for chunk %d due to text update", chunk_id)
                 new_text = updates["text"]
                 if new_text and new_text.strip():
                     # Update text and regenerate embedding via ChromaDB
@@ -501,12 +518,14 @@ def query():
     question = payload.get("query")
     top_k = int(payload.get("top_k", 5))
     if not question:
+        logger.warning("query required")
         return jsonify({"error": "query required"}), 400
 
     try:
         neighbors = find_nearest_neighbors(query=question, num_neighbors=top_k)
 
         if not neighbors:
+            logger.info("No results found for query")
             return jsonify({"results": [], "message": "No results found."}), 200
 
         results = []
@@ -522,6 +541,7 @@ def query():
                 try:
                     chunk_ids.append(int(val))
                 except (ValueError, TypeError):
+                    logger.warning("Failed to parse chunk_id: %s", val)
                     continue
 
             chunks = get_chunks_by_ids(chunk_ids)
@@ -534,6 +554,7 @@ def query():
                 try:
                     cid = int(val)
                 except (ValueError, TypeError):
+                    logger.warning("Failed to parse chunk_id: %s", val)
                     continue
                 chunk = chunk_map.get(cid)
                 if not chunk:
@@ -557,6 +578,7 @@ def query():
             try:
                 chunk_ids = [int(nid) for nid, _ in neighbors]
             except Exception:
+                logger.warning("Failed to parse chunk_ids from neighbors: %s", neighbors)
                 chunk_ids = []
             chunks = get_chunks_by_ids(chunk_ids)
             chunk_map = {int(c.chunk_id): c for c in chunks}
@@ -564,6 +586,7 @@ def query():
                 try:
                     cid = int(neighbor_id)
                 except Exception:
+                    logger.warning("Failed to parse chunk_id: %s", neighbor_id)
                     continue
                 chunk = chunk_map.get(cid)
                 if not chunk:
