@@ -79,8 +79,10 @@ def _init_chroma_client():
     # Order of path attempts (most desired first)
     candidates: list[str] = []
     if force_tmp:
+        _logger.info("CHROMA_FORCE_TMP set; forcing /tmp usage for ChromaDB")
         candidates = ["/tmp/chroma_db"]
     else:
+        _logger.info("Initializing ChromaDB PersistentClient with path candidates")
         if env_path:
             candidates.append(env_path)
         # Common writable locations on HF Spaces
@@ -94,20 +96,24 @@ def _init_chroma_client():
 
     def _dir_writeable(path: str) -> bool:
         try:
+            _logger.debug(f"Testing writability of directory: {path}")
             test_file = os.path.join(path, f".write_test_{int(time.time()*1000)}")
             with open(test_file, "w", encoding="utf-8") as tf:
                 tf.write("ok")
             os.remove(test_file)
             return True
         except Exception as e:  # pragma: no cover - env specific
+            _logger.error(f"Error testing writability of directory {path}: {e}")   
             tried.append((path, f"dir not writable: {e}"))
             return False
 
     for cand in candidates:
         abs_path = os.path.abspath(cand)
         try:
+            _logger.debug(f"Creating directories for ChromaDB at {abs_path}")
             os.makedirs(abs_path, exist_ok=True)
         except Exception as e:
+            _logger.error(f"Failed to create ChromaDB directory {abs_path}: {e}")
             tried.append((abs_path, f"makedirs failed: {e}"))
             continue
 
@@ -117,6 +123,7 @@ def _init_chroma_client():
             continue
 
         try:
+            _logger.debug(f"Initializing ChromaDB PersistentClient at {abs_path}")
             client = chromadb.PersistentClient(path=abs_path)
         except Exception as e:  # immediate failure
             tried.append((abs_path, f"create failed: {e}"))
@@ -125,24 +132,29 @@ def _init_chroma_client():
 
         # Basic list works?
         try:
+            _logger.debug(f"Listing collections for ChromaDB at {abs_path}")
             client.list_collections()
         except Exception as e:
+            _logger.error(f"Chroma path {abs_path} list_collections failed: {e}")
             tried.append((abs_path, f"list failed: {e}"))
             continue
 
         # WRITE TEST (critical)
         test_coll_name = f"rw_test_{int(time.time()*10)}"
         try:
+            _logger.debug(f"Performing write test for ChromaDB at {abs_path}")
             tc = client.get_or_create_collection(name=test_coll_name)  # type: ignore
             tc.add(ids=["0"], metadatas=[{"t": "x"}], documents=["test"])
             client.delete_collection(name=test_coll_name)
             _logger.info(f"Chroma connected with write access at {abs_path}")
             return client
         except Exception as e:
+            _logger.error(f"Chroma path {abs_path} write test failed: {e}")
             msg = str(e).lower()
             tried.append((abs_path, f"write test failed: {e}"))
             # Clean up partial collection if it exists
             try:
+                _logger.debug(f"Cleaning up partial collection {test_coll_name} at {abs_path}")
                 client.delete_collection(name=test_coll_name)
             except Exception:
                 pass

@@ -110,12 +110,17 @@ def _chunk_paragraphs(paragraphs: List[Tuple[int, str]], max_chars: int, overlap
 		buf.append(para)
 		buf_pages.append(page_idx)
 		current_len += para_len + 2  # account for join newlines
+	
+	logger.info("Chunking %d paragraphs into max_chars=%d with overlap=%d", len(paragraphs), max_chars, overlap)
 
 	# Final flush
 	if buf:
 		chunk_text = "\n\n".join(buf).strip()
 		if chunk_text:
 			chunks.append((chunk_text, min(buf_pages), max(buf_pages)))
+
+	logger.info("Generated %d chunks from paragraphs", len(chunks))
+
 	return chunks
 
 
@@ -156,6 +161,7 @@ def _chunk_paragraphs_tokens(paragraphs: List[Tuple[int, str]], max_tokens: int,
 	paragraphs: list of (page_index, text)
 	Returns list of (chunk_text, page_start, page_end)
 	"""
+	logger.info("Token chunking mode tokenizer=%s max_tokens=%d overlap_tokens=%d", TOKENIZER_NAME, max_tokens, overlap_tokens)
 	# Pre-tokenize paragraphs (cache by object id / value) to avoid repeats
 	tokenized: List[Tuple[int, List[int], str]] = []  # (page_idx, token_ids, original_text)
 	for page_idx, para in paragraphs:
@@ -172,6 +178,8 @@ def _chunk_paragraphs_tokens(paragraphs: List[Tuple[int, str]], max_tokens: int,
 	buf_pages: List[int] = []
 	tail_tokens: List[int] = []
 
+	logger.info("Tokenized %d paragraphs into %d tokenized segments", len(paragraphs), len(tokenized))
+
 	for page_idx, toks, original in tokenized:
 		needed = len(toks)
 		if buf_tokens and (len(buf_tokens) + needed) > max_tokens:
@@ -187,6 +195,8 @@ def _chunk_paragraphs_tokens(paragraphs: List[Tuple[int, str]], max_tokens: int,
 		buf_tokens.extend(toks)
 		buf_pages.append(page_idx)
 
+	logger.info("Token chunking %d segments into max_tokens=%d with overlap_tokens=%d", len(tokenized), max_tokens, overlap_tokens)
+
 	if buf_tokens:
 		chunk_text = _decode_tokens(buf_tokens).strip()
 		if chunk_text:
@@ -195,73 +205,75 @@ def _chunk_paragraphs_tokens(paragraphs: List[Tuple[int, str]], max_tokens: int,
 
 def get_chunk_info(text: str, chunk_text: str) -> Dict[str, Optional[str]]:
 
-    try: 
-        client = OpenAI(api_key=API_KEY)
-        prompt = (
-            f"""
-            You are an expert in legal research and analysis, specializing in technology transactions. Examine the attached technology transactions document and the chunk taken from the document then identify respective values for each of the following keys: section_number (full section, heading, subheading, subsection, paragraph, etc. number(s), letter(s),level(s), etc., applicable to the chunk -- e.g., 9.2(b); VII.A.i; etc.; note the section_number applicable to this chunk may not necessarily be included in this chunk), section_title (heading, section, subheading, subsection, etc. name(s), label(s), etc. applicable to this chunk), clause_type (the type(s) of clause(s) captured in this chunk -- e.g., indemnity, force majure, confidentiality, etc. note that section_number is not a type of clause; however, section_heading may be a type of clause in some instances), path (the heading, section, subheading, subsection, paragraph, etc. level(s)/name(s)/number(s) that lead to the value of section_number for this chunk -- e.g., if section_number is 9.2(b) for the chunk, the path would be 9 → 9.2 → 9.2(b)), numbers_present (Boolean value: true if this chunk includes a section_number in the chunk_text; false if not), and definition_terms (a list of all legal terms defined in this chunk, exclude company and party names; include only legal terms, which are often followed with "shall mean", "means", "is defined as", etc.). Do not include section_number(s) in section_title, and do not include section_title(s) in section_number or path. Consider the substantive meaning of words (e.g., "Page 1 of 12" is not likely to be the clause_type), placement in the document, surrounding text, applicable section, and any other factors that might inform your decision. Chunks may include multiple values for a given key (e.g., multiple section titles or clause types); in such cases, return all applicable values as a comma-separated list. If you cannot identify a value corresponding to one of the keys, respond with null for that key.
-            Return a response in following JSON format only: 
-            {{
-                "section_number": section_number, 
-                "section_title": section_title, 
-                "clause_type": clause_type, 
-                "path": path, 
-                "numbers_present": numbers_present, 
-                "definition_terms": [definition_terms]
-            }}. 
-            Do not return anything else outside of the JSON object. 
-            --- DOCUMENT TEXT START ---\n
-            {text}\n
-            --- DOCUMENT TEXT END ---\n\n
+	logger.info("Extracting chunk info from text of length %d", len(text))
+	
+	try: 
+		client = OpenAI(api_key=API_KEY)
+		prompt = (
+			f"""
+			You are an expert in legal research and analysis, specializing in technology transactions. Examine the attached technology transactions document and the chunk taken from the document then identify respective values for each of the following keys: section_number (full section, heading, subheading, subsection, paragraph, etc. number(s), letter(s),level(s), etc., applicable to the chunk -- e.g., 9.2(b); VII.A.i; etc.; note the section_number applicable to this chunk may not necessarily be included in this chunk), section_title (heading, section, subheading, subsection, etc. name(s), label(s), etc. applicable to this chunk), clause_type (the type(s) of clause(s) captured in this chunk -- e.g., indemnity, force majure, confidentiality, etc. note that section_number is not a type of clause; however, section_heading may be a type of clause in some instances), path (the heading, section, subheading, subsection, paragraph, etc. level(s)/name(s)/number(s) that lead to the value of section_number for this chunk -- e.g., if section_number is 9.2(b) for the chunk, the path would be 9 → 9.2 → 9.2(b)), numbers_present (Boolean value: true if this chunk includes a section_number in the chunk_text; false if not), and definition_terms (a list of all legal terms defined in this chunk, exclude company and party names; include only legal terms, which are often followed with "shall mean", "means", "is defined as", etc.). Do not include section_number(s) in section_title, and do not include section_title(s) in section_number or path. Consider the substantive meaning of words (e.g., "Page 1 of 12" is not likely to be the clause_type), placement in the document, surrounding text, applicable section, and any other factors that might inform your decision. Chunks may include multiple values for a given key (e.g., multiple section titles or clause types); in such cases, return all applicable values as a comma-separated list. If you cannot identify a value corresponding to one of the keys, respond with null for that key.
+			Return a response in following JSON format only: 
+			{{
+				"section_number": section_number, 
+				"section_title": section_title, 
+				"clause_type": clause_type, 
+				"path": path, 
+				"numbers_present": numbers_present, 
+				"definition_terms": [definition_terms]
+			}}. 
+			Do not return anything else outside of the JSON object. 
+			--- DOCUMENT TEXT START ---\n
+			{text}\n
+			--- DOCUMENT TEXT END ---\n\n
 			--- CHUNK TEXT START ---\n
 			{chunk_text}\n
 			--- CHUNK TEXT END ---
-            """
-        )
+			"""
+		)
 
-        response = client.responses.create(
-            model="gpt-5-nano",
-            input=prompt,
+		response = client.responses.create(
+			model="gpt-5-nano",
+			input=prompt,
 			text={"verbosity": "low"},
-        )
+		)
 
-        response = response.output_text if response else ""
-        candidate = (response or [])
-        logger.info(f"AI chunk response: {candidate}")
-        expected_keys = [
-            "section_number",
-            "section_title",
-            "clause_type",
-            "path",
-            "numbers_present",
-            "definition_terms",
-        ]
+		response = response.output_text if response else ""
+		candidate = (response or [])
+		logger.info(f"AI chunk response: {candidate}")
+		expected_keys = [
+			"section_number",
+			"section_title",
+			"clause_type",
+			"path",
+			"numbers_present",
+			"definition_terms",
+		]
 
-        data = {}
-        if isinstance(candidate, dict):
-            data = candidate
-        elif isinstance(candidate, str):
-            try:
-                data = json.loads(candidate)
-            except Exception:
-                logger.error("AI manifest response not valid JSON; returning defaults")
-                data = {}
-        else:
-            logger.error("AI manifest response unexpected type %s", type(candidate))
+		data = {}
+		if isinstance(candidate, dict):
+			data = candidate
+		elif isinstance(candidate, str):
+			try:
+				data = json.loads(candidate)
+			except Exception:
+				logger.error("AI manifest response not valid JSON; returning defaults")
+				data = {}
+		else:
+			logger.error("AI manifest response unexpected type %s", type(candidate))
 
-        # Build normalized manifest dict
-        manifest = {k: (data.get(k) if isinstance(data, dict) else None) for k in expected_keys}
+		# Build normalized manifest dict
+		manifest = {k: (data.get(k) if isinstance(data, dict) else None) for k in expected_keys}
 
-        # Coerce obvious placeholder / unknown strings to None
-        for k, v in manifest.items():
-            if isinstance(v, str) and v.strip().lower() in {"unknown", "null", "n/a", "none", ""}:
-                manifest[k] = None
+		# Coerce obvious placeholder / unknown strings to None
+		for k, v in manifest.items():
+			if isinstance(v, str) and v.strip().lower() in {"unknown", "null", "n/a", "none", ""}:
+				manifest[k] = None
 
-        return manifest
+		return manifest
 
-    except Exception as e:
-        logger.error(f"Error extracting values from text: {e}")
-        return {}
+	except Exception as e:
+		logger.error(f"Error extracting values from text: {e}")
+		return {}
 
 def chunk_doc(text: str, doc_id: int, max_chars: int = 1200, overlap: int = 150, *, max_tokens: Optional[int] = None, token_overlap: Optional[int] = None) -> List[int]:
 	"""Chunk a cleaned text file, persist chunks, metadata, embeddings, and index.
@@ -271,6 +283,7 @@ def chunk_doc(text: str, doc_id: int, max_chars: int = 1200, overlap: int = 150,
 	# Validate modes
 	use_tokens = max_tokens is not None
 	if use_tokens:
+		logger.info("Using token-based chunking for doc_id=%s", doc_id)
 		if max_tokens is None or max_tokens <= 0:
 			raise ValueError("max_tokens must be positive when provided")
 		if token_overlap is None:
@@ -282,6 +295,7 @@ def chunk_doc(text: str, doc_id: int, max_chars: int = 1200, overlap: int = 150,
 			logger.error("token_overlap (%d) >= max_tokens (%d); reducing", token_overlap, max_tokens)
 			token_overlap = max(0, max_tokens // 5)
 	else:
+		logger.info("Using character-based chunking for doc_id=%s", doc_id)
 		if max_chars <= 0:
 			raise ValueError("max_chars must be positive")
 		if overlap < 0:
@@ -424,7 +438,7 @@ def chunk_doc(text: str, doc_id: int, max_chars: int = 1200, overlap: int = 150,
 	except FileNotFoundError:
 		with open(path, "w", encoding="utf-8") as f:
 			f.write(records)
-		logger.info(f"Created new chunks file with {len(chunk_metadata_records)} records as it did not exist")
+		logger.error(f"Created new chunks file with {len(chunk_metadata_records)} records as it did not exist")
 	except Exception as e:
 		logger.error(f"Failed to write chunk records to {path}: {e}")
 

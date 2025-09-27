@@ -20,6 +20,7 @@ MANIFEST_DIR = os.getenv("MANIFEST_DIR", "/data/manifest")
 CHUNKS_DIR = os.getenv("CHUNKS_DIR", "/data/chunks")
 
 def ocr_page(page: fitz.Page, zoom: float = 2.0) -> str:
+    logger.info(f"Performing OCR on page {page.number}")
     mat = fitz.Matrix(zoom, zoom)
 
     pix = page.get_pixmap(matrix=mat, alpha=False)  # type: ignore
