@@ -22,7 +22,7 @@ Available at: [tech-trans-rag](https://huggingface.co/spaces/phaethon-order/tech
 - **Vector Embeddings**: Generate embeddings using Hugging Face models
 - **Semantic Search**: ChromaDB-powered vector similarity search
 - **Dynamic Corpus**: Corpus can be updated to increase knowledge base and customize responses to user preferences, including best practices, jurisdictions, and governing laws. 
-- **Web UI**: Clean, responsive interface for document management and chat
+- **Web UI**: Clean, responsive interface for document management and search
 - **REST API**: Full API access for programmatic integration
 - **Docker Support**: Containerized deployment with persistent data storage
 
@@ -44,10 +44,11 @@ Available at: [tech-trans-rag](https://huggingface.co/spaces/phaethon-order/tech
 │   ├── api.py                 # REST API endpoints
 │   └── web.py                 # Web interface routes
 ├── static/                    # Frontend HTML templates
-│   ├── index.html             # Main chat interface
+│   ├── index.html             # Main search interface
 │   ├── upload.html            # Document upload page
 │   ├── chunks.html            # Document chunks viewer
-│   └── manifest.html          # Document manifest viewer
+│   ├── manifest.html          # Document manifest viewer
+│   └── dbviewer.html          # Raw database viewer
 └── services/                  # GPT services
     └── gpt_service.py         # Query response enrichment
 ```
