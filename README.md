@@ -238,7 +238,7 @@ curl -s -X POST http://localhost:5000/api/reset \
 
 ## 🏴‍☠️ License
 
-This project is licensed under the AGPLv3 License - see the [LICENSE](LICENSE) file for details.
+AGPLv3 License - see the [LICENSE](LICENSE) file for details.
 
 ## 📝 Contributing
 
