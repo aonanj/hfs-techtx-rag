@@ -26,8 +26,8 @@ attach them to the start of each source file to most effectively state
 the exclusion of warranty; and each file should have at least the
 “copyright” line and a pointer to where the full notice is found.
 
-    Flask-based RAG model application for document processing, embedding generation, and semantic   search specific to technology transactions use cases in the legal domain.
-    Copyright (C) 2025  Phaethon Order LLC
+    RAG model application for semantic searching specific to technology transactions use cases in the legal domain.
+    Copyright © 2025 Phaethon Order LLC
 
     This program is free software: you can redistribute it and/or modify
     it under the terms of the GNU Affero General Public License as
