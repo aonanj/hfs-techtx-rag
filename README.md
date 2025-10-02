@@ -239,16 +239,16 @@ curl -s -X POST http://localhost:5000/api/reset \
 
 ## 🏴‍☠️ License
 
-AGPLv3 License - see the [LICENSE](LICENSE) file for details.
+This repository is publicly viewable for portfolio purposes only. The code is proprietary.
+Copyright © 2025 Phaethon Order LLC. All rights reserved. 
+Contact [support@phaethon.llc](mailto:support@phaethon.llc) for licensing or reuse requests.
 
-## 📝 Contributing
+See [LICENSE](LICENSE)
 
-1. Fork the repository
-2. Create a feature branch
-3. Make your changes
-4. Add tests if applicable
-5. Submit a pull request
+Note: `package.json` may list a different license string; the authoritative license for this repository is proprietary.
 
-## 📞 Contact
+---
 
-For issues and questions, please contact [phaethon@phaethon.llc](mailto:phaethon@phaethon.llc). 
+## 📧 Contact
+
+Questions or support: [support@phaethon.llc](mailto:support@phaethon.llc).
