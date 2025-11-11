@@ -15,7 +15,7 @@ A Flask-based Retrieval-Augmented Generation (RAG) application for document proc
 
 Available at: [tech-trans-rag](https://huggingface.co/spaces/phaethon-order/tech-trans-rag "Hugging Face Spaces: phaethon-order/tech-trans-rag")
 
-## 💡 Features
+## Features
 
 - **Document Processing**: Upload and process PDF, DOCX, and text files
 - **Smart Chunking**: Intelligent document segmentation for optimal retrieval
@@ -26,7 +26,7 @@ Available at: [tech-trans-rag](https://huggingface.co/spaces/phaethon-order/tech
 - **REST API**: Full API access for programmatic integration
 - **Docker Support**: Containerized deployment with persistent data storage
 
-## 🏗️ Architecture
+## Architecture
 
 ```
 ├── app.py                     # Main Flask application
@@ -53,7 +53,7 @@ Available at: [tech-trans-rag](https://huggingface.co/spaces/phaethon-order/tech
     └── gpt_service.py         # Query response enrichment
 ```
 
-## 🛠️ Quick Start
+## Quick Start
 
 ### Environment Setup
 
@@ -115,7 +115,7 @@ Available at: [tech-trans-rag](https://huggingface.co/spaces/phaethon-order/tech
      tech-trans-rag
    ```
 
-## 📚 API Endpoints
+## API Endpoints
 
 ### Document Management
 - `POST /api/upload` — Upload and process documents
@@ -136,7 +136,7 @@ Available at: [tech-trans-rag](https://huggingface.co/spaces/phaethon-order/tech
 - `POST /api/reset` — Reset ChromaDB and reinitialize collections
    - If `RESET_PASSWORD` is set, provide `{"password": "<value>"}` in the JSON body or pass header `X-Reset-Password: <value>`
 
-## ⚙️ Configuration
+## Configuration
 
 ### Environment Variables
 
@@ -167,7 +167,7 @@ The application uses the following directories for data storage:
 - `/data/cache` - Model cache
 - `/data/.huggingface` - Hugging Face model cache
 
-## 🔒 Security Features
+## Security Features
 
 ### Reset Protection
 You can protect the dangerous Reset operation by setting the `RESET_PASSWORD` environment variable:
@@ -212,7 +212,7 @@ curl -s -X POST http://localhost:5000/api/reset \
    -d '{"password": "change-me"}' | jq
 ```
 
-## 🛠️ Development
+## Development
 
 ### Project Structure
 - **Infrastructure Layer**: Core processing modules for documents, embeddings, and search
@@ -237,7 +237,7 @@ curl -s -X POST http://localhost:5000/api/reset \
 - JSONL not found: `/api/chunks/jsonl` returns empty if `/data/chunks/chunks.jsonl` has not been generated yet by the chunker; use `/api/chunks/all` as a fallback.
 - Large uploads: For PDFs with many pages, processing can take time; watch the server logs for progress and ensure model caches under `/data/cache` are writable.
 
-## 🏴‍☠️ License
+## License
 
 This repository is publicly viewable for portfolio purposes only. The code is proprietary.
 Copyright © 2025 Phaethon Order LLC. All rights reserved. 
@@ -249,6 +249,6 @@ Note: `package.json` may list a different license string; the authoritative lice
 
 ---
 
-## 📧 Contact
+## Contact
 
 Questions or support: [support@phaethon.llc](mailto:support@phaethon.llc).
