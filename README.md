@@ -243,7 +243,7 @@ This repository is publicly viewable for portfolio purposes only. The code is pr
 Copyright © 2025 Phaethon Order LLC. All rights reserved. 
 Contact [support@phaethon.llc](mailto:support@phaethon.llc) for licensing or reuse requests.
 
-See [LICENSE](LICENSE)
+See [LICENSE](LICENSE.md)
 
 Note: `package.json` may list a different license string; the authoritative license for this repository is proprietary.
 
